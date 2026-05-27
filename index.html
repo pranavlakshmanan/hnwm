@@ -180,11 +180,32 @@
         </p>
 
         <p>
-          On grid&ndash;structured states the norm is taken per cell, so
-          \(\hat{e}\) becomes a spatial map that lights up exactly where
-          the surrogate's prediction is fragile. The cost is two extra
-          forward passes through the same network, with no calibration
-          set and no retraining.
+          The cost is two extra forward passes through the same network,
+          with no calibration set and no retraining. The shape of
+          \(\hat{e}\) depends on the state space. For grid PDEs
+          (Oregonator, Euler 2D) the channels collapse at each spatial
+          location and \(\hat{e}\) becomes a 2D map. For
+          low&ndash;dimensional states (Ball 3D) \(\hat{e}\) is a per&ndash;ball
+          scalar.
+        </p>
+
+        <p>
+          To gate a whole trajectory in Mode 2 below, we average the
+          per&ndash;cell map into a single scalar
+        </p>
+
+        <p class="math-display">
+          \[
+            \bar{e}(s, T) \;=\; \frac{1}{|\Omega|} \sum_{\Omega} \hat{e}(s, T),
+          \]
+        </p>
+
+        <p>
+          where \(\Omega\) is the grid (or the set of balls). That
+          trajectory&ndash;mean score is what ranks trajectories for the
+          trust&ndash;gated fallback. The spatial map stays useful for
+          inspection: it tells you <em>where</em> the prediction is
+          fragile inside one trajectory.
         </p>
 
         <figure class="figure">
@@ -394,12 +415,16 @@
         </p>
 
         <figure class="figure figure-wide">
-          <video class="media" autoplay loop muted playsinline webkit-playsinline preload="auto" poster="assets/euler_poster.jpg">
-            <source src="assets/euler.mp4" type="video/mp4" />
+          <video class="media" autoplay loop muted playsinline webkit-playsinline preload="auto" poster="assets/euler_pred_poster.jpg">
+            <source src="assets/euler_pred.mp4" type="video/mp4" />
           </video>
           <figcaption class="caption">
-            A 2D compressible flow trajectory: density evolving as shocks
-            collide and travel across the domain.
+            Euler prediction evolution. Input density, surrogate
+            prediction, step&ndash;doubling trust signal \(\hat{e}\), and
+            true error, swept across horizons
+            \(h \in \{2,\,4,\,8,\,12,\,16,\,24,\,32,\,48,\,64\}\). The
+            trust map concentrates on the contact discontinuity and the
+            shock ring, the same regions where the true error lives.
           </figcaption>
         </figure>
 
@@ -408,9 +433,9 @@
             <img src="assets/03_euler_visual.png" alt="Five-column panel showing input density, prediction, ground truth, predicted error map, and true error map for the Euler 2D system." />
           </a>
           <figcaption class="caption">
-            Different equations, different solutions, same probe. The
-            predicted error map (column 4) localizes the actual error
-            pattern (column 5) along the moving shock fronts.
+            The static publication view at \(h{=}64\): input, prediction,
+            ground truth, \(\hat{e}\), and true error. The trust map
+            concentrates along the moving shock fronts.
           </figcaption>
         </figure>
       </div>
