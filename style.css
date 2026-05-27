@@ -130,10 +130,9 @@ button { font: inherit; cursor: pointer; }
   margin-bottom: 1.5rem;
 }
 .logo-mark {
-  width: 28px;
-  height: 28px;
-  filter: invert(1) brightness(0) saturate(100%);
-  opacity: 0.85;
+  height: 30px;
+  width: auto;
+  opacity: 0.92;
 }
 .kicker {
   font-family: "Inter", system-ui, sans-serif;
@@ -480,9 +479,9 @@ strong { font-weight: 600; color: var(--ink); }
   gap: .75rem;
 }
 .footer-logo {
-  width: 32px;
-  height: 32px;
-  opacity: 0.7;
+  height: 36px;
+  width: auto;
+  opacity: 0.72;
 }
 .footer-copy {
   margin: 0;

@@ -227,12 +227,13 @@
     <section class="section env">
       <div class="container">
         <p class="env-tag">Environment 3 &middot; Rigid&ndash;body ODE</p>
-        <h3 class="env-title">3D contact dynamics in MuJoCo</h3>
+        <h3 class="env-title">3D bouncing balls</h3>
 
         <p>
-          Not just PDEs. The same approach works on rigid&ndash;body physics
-          too: six balls bouncing in a 3D box, simulated in MuJoCo, with
-          stiff elastic contact.
+          Not just PDEs. The same approach works on rigid&ndash;body
+          physics too: six balls flying around a 3D box under gravity with
+          near&ndash;elastic wall collisions. Pure numpy simulator, no
+          contact solver, no surprises.
         </p>
 
         <figure class="figure figure-pair">
@@ -240,8 +241,8 @@
             <source src="assets/ball3d.mp4" type="video/mp4" />
           </video>
           <figcaption class="caption">
-            Multi&ndash;ball MuJoCo trajectory. State is per&ndash;ball
-            position, linear velocity, and angular velocity.
+            Six independent trajectories rendered in one scene. State is
+            per&ndash;ball position, linear velocity, and angular velocity.
           </figcaption>
         </figure>
 
