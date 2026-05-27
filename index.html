@@ -99,7 +99,7 @@
     <section class="section section-lede" id="tldr">
       <div class="container">
         <figure class="figure figure-bleed">
-          <video class="media" autoplay loop muted playsinline poster="assets/summary_01_insight.png">
+          <video class="media" autoplay loop muted playsinline webkit-playsinline poster="assets/summary_01_insight.png">
             <source src="assets/explainer_v7.mp4" type="video/mp4" />
             Your browser does not support embedded video.
           </video>
@@ -318,7 +318,7 @@
         </p>
 
         <figure class="figure figure-pair">
-          <video class="media" autoplay loop muted playsinline preload="metadata" poster="assets/oregonator_poster.jpg">
+          <video class="media" autoplay loop muted playsinline webkit-playsinline preload="auto" poster="assets/oregonator_poster.jpg">
             <source src="assets/oregonator.mp4" type="video/mp4" />
           </video>
           <figcaption class="caption">
@@ -338,7 +338,7 @@
         </p>
 
         <figure class="figure figure-wide">
-          <video class="media" autoplay loop muted playsinline preload="metadata" poster="assets/oregonator_pred_poster.jpg">
+          <video class="media" autoplay loop muted playsinline webkit-playsinline preload="auto" poster="assets/oregonator_pred_poster.jpg">
             <source src="assets/oregonator_pred.mp4" type="video/mp4" />
           </video>
           <figcaption class="caption">
@@ -394,7 +394,7 @@
         </p>
 
         <figure class="figure figure-wide">
-          <video class="media" autoplay loop muted playsinline preload="metadata" poster="assets/euler_poster.jpg">
+          <video class="media" autoplay loop muted playsinline webkit-playsinline preload="auto" poster="assets/euler_poster.jpg">
             <source src="assets/euler.mp4" type="video/mp4" />
           </video>
           <figcaption class="caption">
@@ -449,7 +449,7 @@
         </p>
 
         <figure class="figure figure-pair">
-          <video class="media" autoplay loop muted playsinline preload="metadata" poster="assets/ball3d_poster.jpg">
+          <video class="media" autoplay loop muted playsinline webkit-playsinline preload="auto" poster="assets/ball3d_poster.jpg">
             <source src="assets/ball3d.mp4" type="video/mp4" />
           </video>
           <figcaption class="caption">
@@ -874,6 +874,59 @@
       <p class="footer-year">&copy; 2026</p>
     </div>
   </footer>
+
+  <script>
+    // Mobile autoplay fallback: some browsers (iOS Safari, data-saver mode,
+    // background-throttling Chrome) will not honour <video autoplay> on
+    // first load. We retry play() on every video when:
+    //   1. the page is fully loaded
+    //   2. each video scrolls into view
+    //   3. the user taps/scrolls anywhere on the page
+    (function () {
+      var vids = Array.prototype.slice.call(document.querySelectorAll("video"));
+      if (!vids.length) return;
+
+      function tryPlay(v) {
+        var p = v.play();
+        if (p && typeof p.catch === "function") p.catch(function () {});
+      }
+
+      function playAll() { vids.forEach(tryPlay); }
+
+      // 1. On full load (DOM + assets), nudge them
+      window.addEventListener("load", playAll);
+
+      // 2. Play when each video enters the viewport
+      if ("IntersectionObserver" in window) {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) tryPlay(e.target);
+          });
+        }, { threshold: 0.1 });
+        vids.forEach(function (v) { io.observe(v); });
+      }
+
+      // 3. First user interaction unlocks autoplay on the strictest browsers
+      function onInteract() {
+        playAll();
+        ["touchstart", "click", "scroll", "keydown"].forEach(function (e) {
+          window.removeEventListener(e, onInteract, { passive: true });
+        });
+      }
+      ["touchstart", "click", "scroll", "keydown"].forEach(function (e) {
+        window.addEventListener(e, onInteract, { passive: true });
+      });
+
+      // 4. Catch any video the browser paused (e.g. dropped to background tab)
+      vids.forEach(function (v) {
+        v.addEventListener("pause", function () {
+          if (!v.ended && document.visibilityState === "visible") {
+            setTimeout(function () { tryPlay(v); }, 60);
+          }
+        });
+      });
+    })();
+  </script>
 
 </body>
 </html>
