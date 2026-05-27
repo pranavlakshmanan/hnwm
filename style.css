@@ -331,10 +331,12 @@ html { scroll-padding-top: 1.5rem; }
   padding: .5rem 1rem .5rem 1.1rem;
   border-radius: 0 4px 4px 0;
 }
-mjx-container {
+mjx-container,
+mjx-container[jax="SVG"] {
   font-size: 1em !important;
 }
-mjx-container[display="true"] {
+mjx-container[display="true"],
+mjx-container[jax="SVG"][display="true"] {
   display: block !important;
   margin: 0 auto !important;
   overflow-x: auto;
@@ -342,24 +344,24 @@ mjx-container[display="true"] {
   max-width: 100%;
   text-align: center;
 }
-mjx-container[display="true"] svg {
+mjx-container[display="true"] svg,
+mjx-container[jax="SVG"][display="true"] svg {
   max-width: 100% !important;
   height: auto !important;
+  display: inline-block;
 }
-mjx-container:not([display="true"]) {
+mjx-container:not([display="true"]),
+mjx-container[jax="SVG"]:not([display="true"]) {
   display: inline-block !important;
   margin: 0 !important;
   padding: 0 !important;
   vertical-align: baseline !important;
-  line-height: 0 !important;
-  white-space: nowrap;
+  line-height: 1 !important;
 }
-mjx-container:not([display="true"]) svg {
-  vertical-align: -0.16em;
+mjx-container:not([display="true"]) svg,
+mjx-container[jax="SVG"]:not([display="true"]) svg {
+  vertical-align: -0.18em;
 }
-/* prevent line-break-around-math even if MathJax adds wrappers */
-p mjx-container, li mjx-container, span mjx-container,
-td mjx-container, th mjx-container { white-space: nowrap; }
 
 /* ===================================================================
    DATA TABLES

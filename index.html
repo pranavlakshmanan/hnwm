@@ -109,25 +109,26 @@
         </figure>
 
         <p class="lede">
-          The problem with neural physics simulators isn't speed. It's trust.
-          They can be seventy times faster than a classical solver and silently
-          go wrong at deployment with no way to know.
+          Neural physics simulators are fast. The hard part is knowing when
+          to trust them: a surrogate can run 70x faster than a classical
+          solver and quietly produce nonsense at deployment.
         </p>
 
         <p>
-          We trained a single neural network to leap an arbitrary number of
-          simulator steps ahead in one forward pass, across three very
-          different physical systems. Then we noticed something. If you ask
-          the network for the same future two ways, the disagreement between
-          the two answers is a label-free signal for when its prediction can
-          be trusted.
+          We trained one neural network to leap any number of simulator
+          steps ahead in a single forward pass, on three different physical
+          systems. Asking the same network for the same future in two
+          different ways gives back two predictions. The disagreement
+          between them is a per&ndash;cell trust signal that needs no
+          ground&ndash;truth labels and falls out of forward passes we
+          already had to run.
         </p>
 
         <p>
-          This page walks through the result on each system, the speed
-          numbers, the safety net that follows from the trust signal, and a
-          head-to-head against a 1910 textbook method that the modern version
-          beats by a wide margin.
+          The rest of this page covers the recipe, the per&ndash;environment
+          results, the speedup numbers, the safety net the trust signal
+          enables at deployment, and a head&ndash;to&ndash;head against the
+          classical analogue.
         </p>
       </div>
     </section>
@@ -179,10 +180,11 @@
         </p>
 
         <p>
-          On grid-structured states this is naturally per&ndash;cell, so
-          \(\hat{e}\) is a spatial map highlighting exactly where the
-          surrogate's prediction is fragile. No labels. No retraining. Two
-          extra forward passes through the same network we already trained.
+          On grid&ndash;structured states the norm is taken per cell, so
+          \(\hat{e}\) becomes a spatial map that lights up exactly where
+          the surrogate's prediction is fragile. The cost is two extra
+          forward passes through the same network, with no calibration
+          set and no retraining.
         </p>
 
         <figure class="figure">
@@ -218,12 +220,11 @@
         </p>
 
         <p>
-          It looks attractive because it needs no labels. But it fails,
-          and the failure is provable. The identity map
-          \(f_\theta(s, T) = s\) trivially satisfies the self&ndash;consistency
-          property exactly, so it is the global minimum of
-          \(\mathcal{L}_{\text{SC}}\) in physical state space. Gradient
-          descent finds it in one epoch. We verified this empirically:
+          The objective looks attractive because it needs no labels. It
+          also has an easy global minimum that has nothing to do with
+          physics: the identity map \(f_\theta(s, T) = s\) satisfies
+          self&ndash;consistency exactly. Gradient descent finds it inside
+          one epoch, on every system we tried:
         </p>
 
         <figure class="table-figure">
@@ -259,10 +260,10 @@
         </figure>
 
         <p>
-          The lesson: ground&ndash;truth supervision is what tethers the
-          surrogate to reality. Self&ndash;consistency is then free to act as
-          the deployment&ndash;time probe \(\hat{e}\). The asymmetry is the
-          whole game.
+          The lesson is the asymmetry. Training has to be supervised so
+          the network learns the actual dynamics. Once the dynamics are
+          in there, self&ndash;consistency is free to do its job at
+          deployment as the trust signal \(\hat{e}\).
         </p>
       </div>
     </section>
@@ -316,22 +317,24 @@
           horizon&ndash;64 prediction.
         </p>
 
-        <figure class="figure figure-wide">
+        <figure class="figure figure-pair">
           <video class="media" autoplay loop muted playsinline preload="metadata" poster="assets/oregonator_poster.jpg">
             <source src="assets/oregonator.mp4" type="video/mp4" />
           </video>
           <figcaption class="caption">
-            A target wave evolving over time in the Oregonator simulation.
-            One of the trajectories the network is trained to predict.
+            One of the trajectories the network learns to predict.
+            Chaotic activator&ndash;inhibitor patterns spread, collide,
+            and dissipate across the 256&times;256 grid.
           </figcaption>
         </figure>
 
         <p>
-          Here the network is asked to skip 64 simulator steps ahead in
-          one forward pass. Below: as the prediction horizon grows from
-          \(h{=}2\) to \(h{=}64\), the trust signal \(\hat{e}\) (third
-          panel) tracks the actual error pattern (fourth panel), without
-          ever seeing the ground truth at deployment time.
+          The network is asked to skip 64 simulator steps ahead in one
+          forward pass. The video below sweeps the requested horizon
+          from \(h{=}2\) to \(h{=}64\) on one test trajectory. The trust
+          signal \(\hat{e}\) (third panel) tracks the true error pattern
+          (fourth panel) at every horizon, without seeing the ground
+          truth at any point.
         </p>
 
         <figure class="figure figure-wide">
@@ -339,10 +342,9 @@
             <source src="assets/oregonator_pred.mp4" type="video/mp4" />
           </video>
           <figcaption class="caption">
-            Prediction evolution. Input field, surrogate prediction,
-            step&ndash;doubling trust signal, and true error, sweeping
-            through horizons \(h \in \{2,\,4,\,8,\,12,\,16,\,24,\,32,\,40,\,48,\,56,\,64\}\).
-            The trust map sharpens with the true error.
+            Input field, surrogate prediction, step&ndash;doubling trust
+            signal \(\hat{e}\), and true error, swept across horizons
+            \(h \in \{2,\,4,\,8,\,12,\,16,\,24,\,32,\,40,\,48,\,56,\,64\}\).
           </figcaption>
         </figure>
 
@@ -351,8 +353,8 @@
             <img src="assets/02_oregonator_visual.png" alt="Five-column panel: input field, network prediction, ground truth, predicted error map, and true error map for the Oregonator system." />
           </a>
           <figcaption class="caption">
-            The static publication&ndash;grade view at \(h{=}64\): input,
-            prediction, ground truth, \(\hat{e}\), and true error.
+            The static publication view at \(h{=}64\): input, prediction,
+            ground truth, \(\hat{e}\), and true error.
           </figcaption>
         </figure>
       </div>
@@ -421,30 +423,29 @@
         <h3 class="env-title">3D bouncing balls</h3>
 
         <p>
-          Not just PDEs. The same approach works on rigid&ndash;body
-          physics too: balls flying around a 3D box under gravity, with
-          near&ndash;elastic wall collisions. Between bounces, each ball
-          obeys classical kinematics,
+          The third system is a rigid&ndash;body ODE: balls flying around
+          a 3D box under gravity with near&ndash;elastic wall collisions.
+          Between bounces the dynamics are classical kinematics,
         </p>
 
         <p class="math-display">
           \[
             \ddot{\mathbf{x}} = \mathbf{g},
             \qquad
-            \dot{\boldsymbol{\omega}} = \mathbf{0},
+            \dot{\boldsymbol{\omega}} = \mathbf{0}.
           \]
         </p>
 
         <p>
-          and when it hits a wall, the velocity component normal to the
-          wall flips with restitution \(e\), while the tangential
-          component is preserved (frictionless):
+          A wall collision flips the velocity component normal to the
+          wall with restitution \(e\) and leaves the tangential component
+          alone (frictionless):
           \(\mathbf{v}_n \to -e\,\mathbf{v}_n,\ \mathbf{v}_t \to \mathbf{v}_t\).
-          State is the 9&ndash;vector
+          Per&ndash;ball state is the 9&ndash;vector
           \((\mathbf{x},\dot{\mathbf{x}},\boldsymbol{\omega})\in\mathbb{R}^{9}\).
           <strong>Reference solver:</strong> the closed&ndash;form analytic
-          flow with wall&ndash;hit times resolved by quadratic root&ndash;finding,
-          implemented in pure numpy. No contact solver, no MuJoCo.
+          flow, with wall&ndash;hit times found by quadratic
+          root&ndash;finding. Pure numpy.
         </p>
 
         <figure class="figure figure-pair">
@@ -462,9 +463,10 @@
             <img src="assets/04_ball3d_visual.png" alt="Per-ball prediction visualization showing predicted vs ground truth positions for several balls, with a per-ball error magnitude bar that matches a step-doubling estimate." />
           </a>
           <figcaption class="caption">
-            No grid this time. The probe gives a per&ndash;ball score that
-            ranks which ball's predicted position is least reliable. One
-            recipe, three very different state spaces.
+            \(\hat{e}\) on rigid bodies gives a per&ndash;ball score
+            (column 4) that closely matches the actual error
+            (column 5). Same architecture, same training recipe, three
+            different state spaces.
           </figcaption>
         </figure>
       </div>
@@ -473,11 +475,13 @@
     <!-- =================== MULTI-HORIZON =================== -->
     <section class="section section-band" id="multi-horizon">
       <div class="container">
-        <h2 class="section-title">One network, every horizon at once</h2>
+        <h2 class="section-title">One network, every horizon</h2>
         <p>
-          The same set of weights is trained to predict horizons of
-          2, 4, 8, 16, 32, and 64 simulator steps simultaneously. At
-          deployment you ask for whichever one you want.
+          One set of weights handles every horizon on the base ladder
+          \(\{1, 2, 4, 8, 16, 32, 64\}\). At deployment you pass the
+          horizon as input and read off the prediction; the same network
+          handles short&ndash;range refinement and the long&ndash;range
+          jump.
         </p>
 
         <figure class="figure figure-wide">
@@ -485,11 +489,11 @@
             <img src="assets/05a_horizons_oreg.png" alt="A grid of error maps at increasing horizons. Each column is a horizon (2 through 64 steps). The top row is the predicted error map, the bottom row is the actual error. They track each other at every horizon." />
           </a>
           <figcaption class="caption">
-            Predicted&ndash;error maps (top row) versus true error (bottom)
-            at horizons 2 through 64 on the Oregonator. The probe stays
-            informative across more than an order of magnitude in horizon
-            length. This is the property that unlocks the two deployment
-            modes below.
+            Trust&ndash;signal map (top) versus true error (bottom) at
+            horizons 2 through 64 on the Oregonator. The probe stays
+            informative across more than an order of magnitude in
+            horizon length. This is the property the two deployment
+            modes below rely on.
           </figcaption>
         </figure>
       </div>
@@ -498,25 +502,48 @@
     <!-- =================== SPEED =================== -->
     <section class="section" id="speed">
       <div class="container">
-        <h2 class="section-title">Now the speed</h2>
+        <h2 class="section-title">Speed</h2>
 
         <p>
-          At horizon 64 the surrogate runs roughly seventy times faster than
-          the reference classical solver on the reaction&ndash;diffusion PDE,
-          and twenty&ndash;five times faster on Euler 2D, measured on the
-          same CPU. One neural forward pass replaces a chain of 64 sequential
-          solver steps. Each of those steps is heavy floating&ndash;point work
-          over a 256&times;256 grid. The network skips straight to the end.
+          At \(h{=}64\), one forward pass through the surrogate replaces a
+          chain of 64 sequential classical solver steps. We report two
+          comparisons. The first runs both the surrogate and the solver
+          on the same CPU. This is the honest apples&ndash;to&ndash;apples
+          comparison and the one to quote when latency budgets sit on
+          identical hardware:
+        </p>
+
+        <ul class="plain-list">
+          <li><strong>Oregonator (vs IMEX&ndash;Strang):</strong> 72x at \(h{=}64,\ B{=}1\).</li>
+          <li><strong>Euler 2D (vs HLL+MUSCL):</strong> 25x at \(h{=}64,\ B{=}1\).</li>
+          <li><strong>Ball 3D (vs analytic flow):</strong> 0.34x at \(B{=}1\) (the analytic solver is already a tenth of a millisecond per call). The surrogate flips this once you batch: 0.005&nbsp;ms per pair at \(B{=}128\) gives 31x over a single&ndash;trajectory solver call.</li>
+        </ul>
+
+        <p>
+          When the surrogate is on GPU and the solver on its native CPU
+          implementation (the deployment most users will actually run),
+          single&ndash;trajectory speedups grow to 791x / 109x / 0.23x at
+          \(B{=}1\), and the Ball&nbsp;3D advantage scales linearly with
+          batch size.
+        </p>
+
+        <p>
+          Step doubling at deployment costs two extra forward passes, a
+          3x overhead on the surrogate. Trust&ndash;instrumented inference
+          at \(h{=}64,\ B{=}1\) is still 264x / 36x / 0.08x faster on the
+          GPU&ndash;vs&ndash;CPU comparison.
         </p>
 
         <figure class="figure figure-wide">
           <a class="figure-zoom" href="assets/06_speedup.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
-            <img src="assets/06_speedup.png" alt="Bar chart comparing wall-clock cost of one neural forward pass vs 64 sequential classical solver steps, on a 256x256 grid, on the same CPU. The neural bar is dramatically shorter." />
+            <img src="assets/06_speedup.png" alt="Two-panel figure: left shows surrogate vs solver wall-time across horizons on the same CPU; right shows speedup as a function of batch size on Ball 3D." />
           </a>
           <figcaption class="caption">
-            Wall&ndash;clock cost of one neural forward pass (horizon 64) vs
-            the chain of 64 classical solver steps it replaces, same CPU,
-            same accuracy class.
+            Left: same&ndash;CPU speedup over the classical solver as a
+            function of horizon. Right: speedup on Ball&nbsp;3D as
+            inference is batched, where the surrogate's linear scaling
+            with batch size pulls ahead of the per&ndash;call analytic
+            solver.
           </figcaption>
         </figure>
       </div>
@@ -528,29 +555,34 @@
         <h2 class="section-title">Mode 2: a built&ndash;in safety net</h2>
 
         <p>
-          The two deployment modes the trust signal enables.
+          The trust signal gives two natural ways to deploy the same
+          model.
         </p>
 
         <ul class="plain-list mode-list">
           <li>
             <span class="mode-tag">Mode 1</span>
-            The surrogate runs alone. Maximum speedup, no fallback. Good when
-            average accuracy is fine and a few outliers don't matter.
+            Surrogate alone. Maximum speedup, no fallback. The right
+            choice when average accuracy is what matters and a few
+            outliers are tolerable.
           </li>
           <li>
             <span class="mode-tag">Mode 2</span>
-            Let the trust signal route the easy trajectories through the
-            network and send the high&ndash;<em>&ecirc;</em> ones to the
-            classical solver instead. You pick the threshold, you pick the
-            cost vs accuracy point.
+            Use \(\bar{e}\) (the trajectory&ndash;averaged step&ndash;doubling
+            score) as a gate: trajectories above a chosen threshold get
+            recomputed by the classical solver, the rest stay on the
+            surrogate. One scalar threshold \(q\) controls the
+            cost&ndash;accuracy trade&ndash;off, no retraining required.
           </li>
         </ul>
 
         <figure class="figure">
           <img src="assets/07_mode2.png" alt="Three bar groups (one per system) comparing trajectory error of Mode 1 vs Mode 2. Mode 2 bars are about half as tall." />
           <figcaption class="caption">
-            Mode 2 cuts trajectory error by 43&ndash;52% across all three
-            systems, while keeping most of the Mode&nbsp;1 speedup.
+            At \(q{=}0.75\) (defer 25% of trajectories to the classical
+            solver), Mode 2 cuts surrogate RMSE by 46&ndash;63% on the
+            in&ndash;distribution splits and up to 70% on the
+            out&ndash;of&ndash;distribution far splits.
           </figcaption>
         </figure>
       </div>
@@ -725,70 +757,64 @@
     <!-- =================== LINEAGE =================== -->
     <section class="section" id="lineage">
       <div class="container">
-        <h2 class="section-title">Step doubling has a history. Here's what changes for neural surrogates.</h2>
+        <h2 class="section-title">Step doubling has a history</h2>
 
         <p>
           The intuition behind \(\hat{e}\) is old. Lewis Fry Richardson
           worked out the classical version in 1910 for ODE solvers: run
-          the same integration at step size \(h\) and at step size \(h/2\),
-          compare the two answers, and the difference gives you an error
-          estimate. Modern adaptive ODE codes still use this idea today.
-          Our probe is the spiritual descendant. We're not claiming to
-          have invented step doubling.
+          the same integration at step size \(h\) and at step size
+          \(h/2\), compare the two answers, and the difference is an
+          error estimate with a known leading order. Modern adaptive ODE
+          codes still rely on it today. Our probe sits in that lineage.
         </p>
 
         <p>
-          But two things change when the integrator is a neural network
-          instead of a classical method, and both are quietly load&ndash;bearing
-          for why this works.
-        </p>
-
-        <p>
-          <strong>1. The neural surrogate is not order-stable.</strong>
-          Classical Richardson assumes the solver is a method of known
-          order \(p\), so that the local error scales as \(h^{p+1}\). The
-          \(h\)-vs-\(h/2\) difference then has a clean leading term you
-          can read off. A neural network has no such guarantee. There is
-          no \(p\). The naive Richardson formula doesn't apply, and
-          empirically it collapses on these systems:
+          The classical formula carries an assumption that the neural
+          regime breaks. Richardson extrapolation works when the
+          underlying solver has a known convergence order \(p\), so the
+          local error scales like \(h^{p+1}\). Take the
+          \(h\)&ndash;vs&ndash;\(h/2\) difference, divide by
+          \(2^{p+1}-1\), and you get a calibrated error estimate. A
+          trained neural network has no such order. There is nothing to
+          divide by, and applying the formula anyway gives a noisy,
+          uninformative signal on these systems:
         </p>
 
         <figure class="figure figure-wide">
           <a class="figure-zoom" href="assets/08_richardson.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
-            <img src="assets/08_richardson.png" alt="Two-panel comparison. Left: AUROC of our step-doubling probe vs classical Richardson across horizons 2 to 64. Ours stays between 0.82 and 0.97 while classical Richardson drops to chance and below by horizon 4. Right: wall-time per evaluation, ours under 1 second, classical Richardson 78 to 1864 seconds." />
+            <img src="assets/08_richardson.png" alt="Two-panel comparison. Left: AUROC of step-doubling probe vs classical Richardson across horizons 2 to 64. Right: wall-time per evaluation." />
           </a>
           <figcaption class="caption">
-            On the same Euler 2D test set, classical Richardson
-            extrapolation drops to chance (AUROC&nbsp;\(\approx\)&nbsp;0.5)
-            within four simulator steps and stays there. Our probe holds
-            AUROC between 0.82 and 0.97 across every horizon out to 64.
-            And because it costs two extra forward passes (under one
-            second per evaluation versus 78 to 1864 seconds for the
-            classical analogue) you can afford to run it everywhere.
+            On the same Euler 2D test set, the classical Richardson
+            formula drops to chance (AUROC&nbsp;\(\approx\)&nbsp;0.5)
+            within four simulator steps and stays there. The
+            step&ndash;doubling probe holds AUROC between 0.82 and 0.97
+            across every horizon out to 64. The probe is also two to
+            three orders of magnitude cheaper to compute, costing two
+            extra forward passes (under one second per evaluation)
+            against the 78&ndash;1864 seconds the classical analogue
+            needs at the same horizons.
           </figcaption>
         </figure>
 
         <p>
-          <strong>2. Multi&ndash;horizon training is what makes the probe
-          informative.</strong> We don't just train the surrogate on the
-          end horizon \(T\). We train it on the whole base&ndash;2 ladder
-          \(\{1, 2, 4, 8, 16, 32, 64\}\) simultaneously. That training
-          curriculum is what teaches the network to behave consistently
-          across scales, which is what \(\hat{e}\) is measuring. A
-          single&ndash;horizon network would have nothing to disagree with
-          itself about. Step doubling without multi&ndash;horizon training
-          isn't a signal at all.
+          What replaces the order assumption is the multi&ndash;horizon
+          training curriculum. The network is trained on the entire base
+          ladder \(\{1, 2, 4, 8, 16, 32, 64\}\) at once, which forces it
+          to behave consistently across scales. \(\hat{e}\) measures
+          that scale&ndash;consistency at the actual test input. A
+          surrogate trained on a single horizon would have no probe at
+          all, since the half&ndash;horizon path would not be defined.
         </p>
 
         <p>
-          So: same intuition, completely different mechanics, completely
-          different regime. The classical version applies when you have
-          a method with known order. Ours applies when you've trained a
-          neural surrogate to be consistent across scales. The proof
-          that the surrogate generalises across three very different
-          systems is the same network beating the textbook check at
-          every horizon, on the same hardware, by orders of magnitude
-          in compute.
+          The recipe travels because the assumption it relies on
+          (multi&ndash;horizon training produces a network whose two
+          paths agree on what it has learned) is structural, not
+          equation&ndash;specific. The same network and the same probe
+          carry across reaction&ndash;diffusion, compressible flow, and
+          rigid&ndash;body physics, and beat the textbook check at every
+          horizon by orders of magnitude in compute.
         </p>
       </div>
     </section>
