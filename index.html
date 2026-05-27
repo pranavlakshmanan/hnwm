@@ -5,17 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="color-scheme" content="light" />
   <meta name="description" content="Hybrid Neural World Models: one neural network predicts any horizon of a physical system in a single forward pass, and tells you when to trust its prediction. No labels needed." />
-  <meta property="og:title" content="Hybrid Neural World Models for Physical Dynamics" />
+  <meta property="og:title" content="Hybrid Neural World Models" />
   <meta property="og:description" content="One network. Any horizon. Label-free trust signal." />
   <meta property="og:image" content="assets/summary_01_insight.png" />
   <meta property="og:type" content="article" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="assets/summary_01_insight.png" />
-  <title>Hybrid Neural World Models for Physical Dynamics</title>
+  <title>Hybrid Neural World Models</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"]],
+        displayMath: [["\\[", "\\]"]],
+        processEscapes: true
+      },
+      svg: { fontCache: "global" }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
   <a href="#main" class="skip">Skip to main content</a>
@@ -28,8 +39,7 @@
       </div>
 
       <h1 class="hero-title">
-        Hybrid Neural World Models<br />
-        <span class="hero-subtitle">for Physical Dynamics</span>
+        Hybrid Neural World Models
       </h1>
 
       <p class="authors">
@@ -56,10 +66,37 @@
     </div>
   </header>
 
+  <nav class="toc" aria-label="Table of contents">
+    <div class="container">
+      <p class="toc-label">Contents</p>
+      <ol class="toc-list">
+        <li><a href="#tldr"><span class="toc-num">1</span>The setup</a></li>
+        <li><a href="#trust-signal"><span class="toc-num">2</span>The trust signal</a></li>
+        <li><a href="#collapse"><span class="toc-num">3</span>Why supervision is necessary</a></li>
+        <li><a href="#environments"><span class="toc-num">4</span>Three physical systems</a>
+          <ol>
+            <li><a href="#env-oregonator">4.1&nbsp; Reaction&ndash;diffusion (Oregonator)</a></li>
+            <li><a href="#env-euler">4.2&nbsp; Compressible flow (Euler 2D)</a></li>
+            <li><a href="#env-ball3d">4.3&nbsp; Rigid&ndash;body (Ball 3D)</a></li>
+          </ol>
+        </li>
+        <li><a href="#multi-horizon"><span class="toc-num">5</span>One network, every horizon</a></li>
+        <li><a href="#speed"><span class="toc-num">6</span>Speed</a></li>
+        <li><a href="#mode2"><span class="toc-num">7</span>Mode 2: trust&ndash;gated fallback</a></li>
+        <li><a href="#qsweep"><span class="toc-num">8</span>Trust threshold sensitivity</a></li>
+        <li><a href="#pareto"><span class="toc-num">9</span>The deployment dial</a></li>
+        <li><a href="#beyond"><span class="toc-num">10</span>Beyond the trained horizon</a></li>
+        <li><a href="#conformal"><span class="toc-num">11</span>Conformal prediction, compared</a></li>
+        <li><a href="#lineage"><span class="toc-num">12</span>Step doubling has a history. Here's what changes.</a></li>
+        <li><a href="#citation"><span class="toc-num">13</span>Citation</a></li>
+      </ol>
+    </div>
+  </nav>
+
   <main id="main">
 
     <!-- =================== TL;DR + HERO VIDEO =================== -->
-    <section class="section section-lede">
+    <section class="section section-lede" id="tldr">
       <div class="container">
         <figure class="figure figure-bleed">
           <video class="media" autoplay loop muted playsinline poster="assets/summary_01_insight.png">
@@ -96,111 +133,265 @@
     </section>
 
     <!-- =================== THE TRUST SIGNAL =================== -->
-    <section class="section">
+    <section class="section" id="trust-signal">
       <div class="container">
         <h2 class="section-title">The trust signal, in one move</h2>
 
         <p>
-          Train one network <em>f</em> to predict the state of a physical
-          system at any horizon <em>h</em> in one shot. For any future you
-          care about, you can now ask the same question two ways:
+          We train a single network \(f_\theta(s, T)\) that, given the
+          current state \(s\) of a physical system, predicts the state
+          \(T\) simulator steps later, for any \(T\) on the base&ndash;2
+          ladder \(\{1, 2, 4, 8, 16, 32, 64\}\). The training objective
+          is supervised:
+        </p>
+
+        <p class="math-display">
+          \[
+            \mathcal{L}_{\text{sup}}(\theta)
+            \;=\;
+            \mathbb{E}_{(s_0, s_T, T)\sim \mathcal{D}}
+              \left\lVert \tilde{f}_\theta(s_0, T) - \tilde{s}_T \right\rVert_2^{2}
+          \]
+        </p>
+
+        <p>
+          where \(\tilde{\cdot}\) denotes per-channel normalisation by
+          training-set statistics. For any future you care about, the
+          trained network can answer the same question two ways:
         </p>
 
         <ul class="plain-list">
-          <li><strong>The direct answer:</strong> <em>f(s, h)</em> &ndash; jump <em>h</em> steps in one forward pass.</li>
-          <li><strong>The doubled answer:</strong> <em>f(f(s, h/2), h/2)</em> &ndash; take two half-steps and compose.</li>
+          <li><strong>The direct answer:</strong> \(f_\theta(s, T)\) &ndash; jump \(T\) steps in one forward pass.</li>
+          <li><strong>The doubled answer:</strong> \(f_\theta(f_\theta(s, T/2), T/2)\) &ndash; take two half&ndash;steps and compose them.</li>
         </ul>
 
         <p>
-          The two answers should match. When they don't, the network is
-          telling you it doesn't know what happens next. We call this
-          disagreement <em>&ecirc;</em>, the step-doubling probe. It needs no
-          ground-truth labels at deployment time and falls out of the same
-          forward passes you already have to run.
+          If the network has learned the dynamics correctly, the two
+          answers must agree. Their disagreement is our trust signal:
+        </p>
+
+        <p class="math-display math-boxed">
+          \[
+            \hat{e}(s, T)
+            \;=\;
+            \left\lVert\, f_\theta(s, T) \;-\; f_\theta\!\left(f_\theta(s, T/2),\, T/2\right) \right\rVert_2
+          \]
+        </p>
+
+        <p>
+          On grid-structured states this is naturally per&ndash;cell, so
+          \(\hat{e}\) is a spatial map highlighting exactly where the
+          surrogate's prediction is fragile. No labels. No retraining. Two
+          extra forward passes through the same network we already trained.
         </p>
 
         <figure class="figure">
           <img src="assets/summary_01_insight.png" alt="Three-panel diagram: chemical input at time t, neural prediction at t+64 steps, and a trust signal map highlighting where the network expects to be wrong." />
           <figcaption class="caption">
-            From a chemical concentration field at time <em>t</em>, the network
-            predicts the field 64 simulator steps later in one shot. The third
-            panel is the step-doubling probe, a label-free trust signal that
-            highlights exactly where the prediction is fragile.
+            From a chemical concentration field at time \(t\), the network
+            predicts the field 64 simulator steps later in one shot. The
+            third panel is \(\hat{e}\), the step&ndash;doubling probe, a
+            label&ndash;free signal that highlights exactly where the
+            prediction is fragile.
           </figcaption>
         </figure>
       </div>
     </section>
 
+    <!-- =================== WHY SUPERVISION IS NECESSARY =================== -->
+    <section class="section section-band" id="collapse">
+      <div class="container">
+        <h2 class="section-title">Why we have to supervise the training</h2>
+
+        <p>
+          A tempting shortcut would be to train the network on the
+          self&ndash;consistency loss alone, with no ground truth:
+        </p>
+
+        <p class="math-display">
+          \[
+            \mathcal{L}_{\text{SC}}(\theta)
+            \;=\;
+            \mathbb{E}_{(s_0, T)\sim p}
+            \left\lVert\, \tilde{f}_\theta(s_0, T) - \tilde{f}_\theta\!\left(f_\theta(s_0, T/2),\, T/2\right) \right\rVert_2^{2}.
+          \]
+        </p>
+
+        <p>
+          It looks attractive because it needs no labels. But it fails,
+          and the failure is provable. The identity map
+          \(f_\theta(s, T) = s\) trivially satisfies the self&ndash;consistency
+          property exactly, so it is the global minimum of
+          \(\mathcal{L}_{\text{SC}}\) in physical state space. Gradient
+          descent finds it in one epoch. We verified this empirically:
+        </p>
+
+        <figure class="table-figure">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>epoch</th>
+                <th>\(\mathcal{L}_{\text{SC}}\)</th>
+                <th>val MSE vs GT</th>
+                <th>trivial&ndash;fixed&ndash;point distance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th rowspan="4">Oregonator</th><td>1</td><td>\(3.3\!\times\!10^{-3}\)</td><td>0.031</td><td>\(<10^{-4}\)</td></tr>
+              <tr><td>5</td><td>\(2.8\!\times\!10^{-6}\)</td><td>0.030</td><td>\(<10^{-4}\)</td></tr>
+              <tr><td>10</td><td>\(2.0\!\times\!10^{-6}\)</td><td>0.029</td><td>\(<10^{-4}\)</td></tr>
+              <tr><td>20</td><td>\(2.3\!\times\!10^{-6}\)</td><td>0.037</td><td>\(<10^{-4}\)</td></tr>
+              <tr><th rowspan="4">Euler 2D</th><td>1</td><td>\(5.9\!\times\!10^{-3}\)</td><td>5.78</td><td>\(4.8\!\times\!10^{-3}\)</td></tr>
+              <tr><td>5</td><td>\(1.6\!\times\!10^{-5}\)</td><td>9.40</td><td>\(8.5\!\times\!10^{-4}\)</td></tr>
+              <tr><td>10</td><td>\(5.8\!\times\!10^{-6}\)</td><td>7.38</td><td>\(3.9\!\times\!10^{-4}\)</td></tr>
+              <tr><td>20</td><td>\(2.7\!\times\!10^{-6}\)</td><td>8.23</td><td>\(8.8\!\times\!10^{-5}\)</td></tr>
+            </tbody>
+          </table>
+          <figcaption class="caption">
+            Trained with self&ndash;consistency alone, \(\mathcal{L}_{\text{SC}}\)
+            crashes to \(\sim 10^{-6}\) inside one epoch and the network
+            sits on \(f_\theta(s, T)\approx s\). On Euler 2D the validation
+            MSE against ground truth is in the range 1.4 to 13 (ground
+            truth is \(\mathcal{O}(1)\)). The model has perfectly
+            satisfied the constraint and learned nothing.
+          </figcaption>
+        </figure>
+
+        <p>
+          The lesson: ground&ndash;truth supervision is what tethers the
+          surrogate to reality. Self&ndash;consistency is then free to act as
+          the deployment&ndash;time probe \(\hat{e}\). The asymmetry is the
+          whole game.
+        </p>
+      </div>
+    </section>
+
     <!-- =================== THREE PHYSICAL SYSTEMS =================== -->
-    <section class="section section-band">
+    <section class="section" id="environments">
       <div class="container">
         <h2 class="section-title">Three different physical systems, one recipe</h2>
         <p>
-          The trust signal isn't tuned to a particular equation. Below it
-          works on a reaction&ndash;diffusion PDE, on compressible gas flow,
-          and on rigid&ndash;body contact dynamics, all with the same training
-          recipe and the same probe.
+          The trust signal isn't tuned to a particular equation. We test
+          it on three systems that span the modelling spectrum: a stiff
+          reaction&ndash;diffusion PDE, a nonlinear hyperbolic conservation
+          law, and a rigid&ndash;body ODE with discrete collision events.
+          The dynamics, the natural state space, and the reference
+          numerical method are all different. The surrogate and the probe
+          are the same.
         </p>
       </div>
     </section>
 
     <!-- =================== ENV 1: OREGONATOR =================== -->
-    <section class="section env">
+    <section class="section env" id="env-oregonator">
       <div class="container">
         <p class="env-tag">Environment 1 &middot; Reaction&ndash;diffusion PDE</p>
-        <h3 class="env-title">Belousov&ndash;Zhabotinsky waves</h3>
+        <h3 class="env-title">Belousov&ndash;Zhabotinsky waves (Oregonator)</h3>
 
         <p>
           The Oregonator model captures the Belousov&ndash;Zhabotinsky
-          reaction: a real chemistry experiment where colored waves and
-          spirals spontaneously appear and travel across a dish. Mathematically
-          it's a two-variable reaction&ndash;diffusion PDE on a 256&times;256
-          periodic grid.
+          reaction, a real chemistry experiment where colored waves and
+          spirals spontaneously appear and travel across a dish.
+          Mathematically it's a two&ndash;variable reaction&ndash;diffusion
+          PDE for activator \(u\) and inhibitor \(v\):
         </p>
 
-        <figure class="figure figure-pair">
+        <p class="math-display">
+          \[
+          \begin{aligned}
+            \partial_t u &= D\,\nabla^{2} u
+                            + \tfrac{1}{\varepsilon}\!\left(u(1-u) - f\,v\,\tfrac{u-q}{u+q}\right), \\
+            \partial_t v &= D\,\nabla^{2} v + (u - v),
+          \end{aligned}
+          \]
+        </p>
+
+        <p>
+          on a 256&times;256 periodic grid in non&ndash;dimensional units
+          (\(D{=}1,\ \varepsilon{=}0.05,\ q{=}0.002,\ f{=}2.0\)).
+          <strong>Reference solver:</strong> IMEX Strang&ndash;splitting,
+          explicit finite&ndash;volume for the diffusion, implicit Euler
+          for the reaction stiffness. Roughly 200 substeps per
+          horizon&ndash;64 prediction.
+        </p>
+
+        <figure class="figure figure-wide">
           <video class="media" autoplay loop muted playsinline preload="metadata" poster="assets/oregonator_poster.jpg">
             <source src="assets/oregonator.mp4" type="video/mp4" />
           </video>
           <figcaption class="caption">
-            A spiral wave evolving over time in the Oregonator simulation. One
-            of the trajectories the network is trained to predict.
+            A target wave evolving over time in the Oregonator simulation.
+            One of the trajectories the network is trained to predict.
           </figcaption>
         </figure>
 
         <p>
-          The network is asked to skip 64 simulator steps ahead in a single
-          forward pass. Column 4 below is what the step-doubling probe
-          predicts the error will look like. Column 5 is the actual error
-          against ground truth, which the network never sees at deployment.
-          They match.
+          Here the network is asked to skip 64 simulator steps ahead in
+          one forward pass. Below: as the prediction horizon grows from
+          \(h{=}2\) to \(h{=}64\), the trust signal \(\hat{e}\) (third
+          panel) tracks the actual error pattern (fourth panel), without
+          ever seeing the ground truth at deployment time.
         </p>
 
         <figure class="figure figure-wide">
+          <video class="media" autoplay loop muted playsinline preload="metadata" poster="assets/oregonator_pred_poster.jpg">
+            <source src="assets/oregonator_pred.mp4" type="video/mp4" />
+          </video>
+          <figcaption class="caption">
+            Prediction evolution. Input field, surrogate prediction,
+            step&ndash;doubling trust signal, and true error, sweeping
+            through horizons \(h \in \{2,\,4,\,8,\,12,\,16,\,24,\,32,\,40,\,48,\,56,\,64\}\).
+            The trust map sharpens with the true error.
+          </figcaption>
+        </figure>
+
+        <figure class="figure figure-wide">
           <a class="figure-zoom" href="assets/02_oregonator_visual.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
-            <img src="assets/02_oregonator_visual.png" alt="Five-column panel showing input field, network prediction, ground truth, predicted error map, and true error map for the Oregonator system. The predicted and true error maps look visually similar." />
+            <img src="assets/02_oregonator_visual.png" alt="Five-column panel: input field, network prediction, ground truth, predicted error map, and true error map for the Oregonator system." />
           </a>
           <figcaption class="caption">
-            The network flags where it's about to go wrong without ever seeing
-            the ground truth.
+            The static publication&ndash;grade view at \(h{=}64\): input,
+            prediction, ground truth, \(\hat{e}\), and true error.
           </figcaption>
         </figure>
       </div>
     </section>
 
     <!-- =================== ENV 2: EULER 2D =================== -->
-    <section class="section env">
+    <section class="section env" id="env-euler">
       <div class="container">
         <p class="env-tag">Environment 2 &middot; Compressible flow PDE</p>
         <h3 class="env-title">Euler equations in 2D</h3>
 
         <p>
           The compressible Euler equations are the math behind aerodynamics:
-          shocks, contact discontinuities, vortex sheets. Same network
-          architecture, same training recipe, completely different physics.
+          shocks, contact discontinuities, vortex sheets. In conservative
+          form,
         </p>
 
-        <figure class="figure figure-pair">
+        <p class="math-display">
+          \[
+            \partial_t \mathbf{q}
+            + \partial_x \mathbf{F}(\mathbf{q})
+            + \partial_y \mathbf{G}(\mathbf{q})
+            \;=\; \mathbf{0},
+            \qquad
+            \mathbf{q} = (\rho,\,\rho u,\,\rho v,\,E)^{\!\top},
+          \]
+        </p>
+
+        <p>
+          with fluxes \(\mathbf{F},\mathbf{G}\) determined by the
+          equation of state \(p = (\gamma{-}1)\!\left(E - \tfrac{1}{2}\rho(u^2{+}v^2)\right)\),
+          \(\gamma=1.4\). We solve on a 128&times;128 grid with shock&ndash;tube
+          and Riemann initial conditions.
+          <strong>Reference solver:</strong> finite&ndash;volume with HLL
+          Riemann solver, MUSCL&ndash;Hancock reconstruction for second
+          order in space and time, CFL&ndash;limited explicit stepping.
+        </p>
+
+        <figure class="figure figure-wide">
           <video class="media" autoplay loop muted playsinline preload="metadata" poster="assets/euler_poster.jpg">
             <source src="assets/euler.mp4" type="video/mp4" />
           </video>
@@ -216,24 +407,44 @@
           </a>
           <figcaption class="caption">
             Different equations, different solutions, same probe. The
-            predicted error map (col 4) localizes the actual error pattern
-            (col 5) along the moving shock fronts.
+            predicted error map (column 4) localizes the actual error
+            pattern (column 5) along the moving shock fronts.
           </figcaption>
         </figure>
       </div>
     </section>
 
     <!-- =================== ENV 3: BALL 3D =================== -->
-    <section class="section env">
+    <section class="section env" id="env-ball3d">
       <div class="container">
         <p class="env-tag">Environment 3 &middot; Rigid&ndash;body ODE</p>
         <h3 class="env-title">3D bouncing balls</h3>
 
         <p>
           Not just PDEs. The same approach works on rigid&ndash;body
-          physics too: six balls flying around a 3D box under gravity with
-          near&ndash;elastic wall collisions. Pure numpy simulator, no
-          contact solver, no surprises.
+          physics too: balls flying around a 3D box under gravity, with
+          near&ndash;elastic wall collisions. Between bounces, each ball
+          obeys classical kinematics,
+        </p>
+
+        <p class="math-display">
+          \[
+            \ddot{\mathbf{x}} = \mathbf{g},
+            \qquad
+            \dot{\boldsymbol{\omega}} = \mathbf{0},
+          \]
+        </p>
+
+        <p>
+          and when it hits a wall, the velocity component normal to the
+          wall flips with restitution \(e\), while the tangential
+          component is preserved (frictionless):
+          \(\mathbf{v}_n \to -e\,\mathbf{v}_n,\ \mathbf{v}_t \to \mathbf{v}_t\).
+          State is the 9&ndash;vector
+          \((\mathbf{x},\dot{\mathbf{x}},\boldsymbol{\omega})\in\mathbb{R}^{9}\).
+          <strong>Reference solver:</strong> the closed&ndash;form analytic
+          flow with wall&ndash;hit times resolved by quadratic root&ndash;finding,
+          implemented in pure numpy. No contact solver, no MuJoCo.
         </p>
 
         <figure class="figure figure-pair">
@@ -260,7 +471,7 @@
     </section>
 
     <!-- =================== MULTI-HORIZON =================== -->
-    <section class="section section-band">
+    <section class="section section-band" id="multi-horizon">
       <div class="container">
         <h2 class="section-title">One network, every horizon at once</h2>
         <p>
@@ -285,7 +496,7 @@
     </section>
 
     <!-- =================== SPEED =================== -->
-    <section class="section">
+    <section class="section" id="speed">
       <div class="container">
         <h2 class="section-title">Now the speed</h2>
 
@@ -312,7 +523,7 @@
     </section>
 
     <!-- =================== MODE 2: TRUST-GATED FALLBACK =================== -->
-    <section class="section section-band">
+    <section class="section section-band" id="mode2">
       <div class="container">
         <h2 class="section-title">Mode 2: a built&ndash;in safety net</h2>
 
@@ -345,8 +556,55 @@
       </div>
     </section>
 
+    <!-- =================== TRUST THRESHOLD SENSITIVITY =================== -->
+    <section class="section" id="qsweep">
+      <div class="container">
+        <h2 class="section-title">Trust threshold sensitivity</h2>
+
+        <p>
+          Mode 2 has one parameter: the gate threshold \(q\). Trajectories
+          whose mean step&ndash;doubling score \(\bar{e}\) lands in the top
+          \(1-q\) fraction get deferred to the classical solver; the
+          remaining \(q\) fraction is left to the surrogate. Lower \(q\)
+          means more deferral, which means more accuracy at the cost of
+          more solver calls. The trade&ndash;off is smooth:
+        </p>
+
+        <figure class="table-figure">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>split</th>
+                <th>Mode 1 RMSE</th>
+                <th>\(q=0.50\)<br /><small>defer 50%</small></th>
+                <th>\(q=0.60\)<br /><small>40%</small></th>
+                <th>\(q=0.75\)<br /><small>25%</small></th>
+                <th>\(q=0.85\)<br /><small>15%</small></th>
+                <th>\(q=0.90\)<br /><small>10%</small></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th rowspan="3">Oregonator</th><td>test</td><td>0.060</td><td>0.012</td><td>0.019</td><td>0.029</td><td>0.038</td><td>0.044</td></tr>
+              <tr><td>ood near</td><td>0.110</td><td>0.027</td><td>0.041</td><td>0.060</td><td>0.078</td><td>0.086</td></tr>
+              <tr><td>ood far</td><td>0.122</td><td>0.016</td><td>0.034</td><td>0.057</td><td>0.086</td><td>0.097</td></tr>
+              <tr><th rowspan="3">Euler 2D</th><td>test</td><td>0.263</td><td>0.064</td><td>0.099</td><td>0.126</td><td>0.155</td><td>0.174</td></tr>
+              <tr><td>ood near</td><td>0.695</td><td>0.190</td><td>0.241</td><td>0.304</td><td>0.364</td><td>0.418</td></tr>
+              <tr><td>ood far</td><td>0.632</td><td>0.087</td><td>0.152</td><td>0.237</td><td>0.344</td><td>0.422</td></tr>
+            </tbody>
+          </table>
+          <figcaption class="caption">
+            Mode 2 RMSE at \(h{=}64\) as the gate threshold sweeps from
+            very aggressive deferral (\(q{=}0.5\)) to barely any
+            (\(q{=}0.9\)). On the Oregonator out&ndash;of&ndash;distribution
+            far split, even deferring 10% of trajectories cuts RMSE 20%.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
     <!-- =================== PARETO =================== -->
-    <section class="section">
+    <section class="section section-band" id="pareto">
       <div class="container">
         <h2 class="section-title">The deployment dial</h2>
 
@@ -368,16 +626,131 @@
       </div>
     </section>
 
-    <!-- =================== RICHARDSON =================== -->
-    <section class="section section-band">
+    <!-- =================== BEYOND TRAINED HORIZON =================== -->
+    <section class="section" id="beyond">
       <div class="container">
-        <h2 class="section-title">Beating the 1910 textbook method</h2>
+        <h2 class="section-title">Beyond the trained horizon</h2>
 
         <p>
-          Step doubling has a long pedigree. Lewis Fry Richardson wrote down
-          the classical version of this idea in 1910 for ODE solvers. We ran
-          his check head&ndash;to&ndash;head against ours on Euler 2D, and
-          the modern version wins on both axes.
+          The network is trained on horizons up to \(T_{\max}{=}64\). What
+          happens when we ask it for \(h{=}80\), or \(128\), or \(160\)?
+          The trust signal degrades gracefully and, on Euler, actually
+          improves:
+        </p>
+
+        <figure class="table-figure">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>split</th>
+                <th>\(h{=}64\)</th>
+                <th>\(h{=}80\)</th>
+                <th>\(h{=}96\)</th>
+                <th>\(h{=}128\)</th>
+                <th>\(h{=}160\)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th rowspan="3">Oregonator</th><td>test</td><td>0.84</td><td>0.84</td><td>0.93</td><td>0.91</td><td>0.71</td></tr>
+              <tr><td>ood near</td><td>0.85</td><td>0.91</td><td>0.89</td><td>0.89</td><td>0.86</td></tr>
+              <tr><td>ood far</td><td>0.91</td><td>0.87</td><td>0.84</td><td>0.97</td><td>0.81</td></tr>
+              <tr><th rowspan="3">Euler 2D</th><td>test</td><td>0.96</td><td>0.99</td><td>0.99</td><td>&mdash;</td><td>&mdash;</td></tr>
+              <tr><td>ood near</td><td>0.98</td><td>0.99</td><td>0.99</td><td>&mdash;</td><td>&mdash;</td></tr>
+              <tr><td>ood far</td><td>0.99</td><td>1.00</td><td>1.00</td><td>&mdash;</td><td>&mdash;</td></tr>
+            </tbody>
+          </table>
+          <figcaption class="caption">
+            Per&ndash;trajectory AUROC of \(\hat{e}\) at horizons past the
+            trained \(T_{\max}{=}64\). On Euler, AUROC rises because the
+            absolute error grows but the variance across trajectories
+            grows faster, making them more separable. The probe rides
+            that separation.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== CONFORMAL =================== -->
+    <section class="section section-band" id="conformal">
+      <div class="container">
+        <h2 class="section-title">How does step doubling compare to conformal prediction?</h2>
+
+        <p>
+          Conformal prediction is the obvious classical baseline: take a
+          calibration set, find the test point's nearest neighbours in
+          some embedding, and use the empirical quantile of their errors
+          as the predicted bound. We ran locally&ndash;adaptive split
+          conformal with \(K{=}20\) KNN reweighting, using per&ndash;channel
+          state statistics as the embedding.
+        </p>
+
+        <figure class="table-figure">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>split</th>
+                <th>Conformal AUROC</th>
+                <th>Step&ndash;doubling AUROC</th>
+                <th>\(\Delta\)</th>
+                <th>Coverage</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th rowspan="3">Oregonator</th><td>test</td><td>0.66</td><td><strong>0.92</strong></td><td>+0.26</td><td>0.84</td></tr>
+              <tr><td>ood near</td><td>0.49</td><td><strong>0.91</strong></td><td>+0.42</td><td>0.72</td></tr>
+              <tr><td>ood far</td><td>0.46</td><td><strong>0.91</strong></td><td>+0.44</td><td>0.68</td></tr>
+              <tr><th rowspan="3">Euler 2D</th><td>test</td><td>0.94</td><td><strong>0.95</strong></td><td>+0.01</td><td>0.87</td></tr>
+              <tr><td>ood near</td><td>0.93</td><td><strong>0.94</strong></td><td>+0.01</td><td>0.69</td></tr>
+              <tr><td>ood far</td><td>0.93</td><td><strong>0.99</strong></td><td>+0.06</td><td>0.54</td></tr>
+              <tr><th colspan="2" style="text-align:right">Mean</th><td><strong>0.74</strong></td><td><strong>0.94</strong></td><td><strong>+0.20</strong></td><td>0.73</td></tr>
+            </tbody>
+          </table>
+          <figcaption class="caption">
+            Conformal lands well on Euler, where shock&ndash;tube initial
+            conditions are visually distinctive enough for KNN to find
+            useful neighbours. On Oregonator it collapses: every initial
+            condition looks similar, so the embedding is uninformative
+            and the procedure degenerates. Coverage also drops badly
+            under OOD shift (down to 54% versus the 90% target on Euler
+            ood&ndash;far). Step doubling queries the surrogate's own
+            consistency at the actual test input. It has no calibration
+            assumption to violate.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== LINEAGE =================== -->
+    <section class="section" id="lineage">
+      <div class="container">
+        <h2 class="section-title">Step doubling has a history. Here's what changes for neural surrogates.</h2>
+
+        <p>
+          The intuition behind \(\hat{e}\) is old. Lewis Fry Richardson
+          worked out the classical version in 1910 for ODE solvers: run
+          the same integration at step size \(h\) and at step size \(h/2\),
+          compare the two answers, and the difference gives you an error
+          estimate. Modern adaptive ODE codes still use this idea today.
+          Our probe is the spiritual descendant. We're not claiming to
+          have invented step doubling.
+        </p>
+
+        <p>
+          But two things change when the integrator is a neural network
+          instead of a classical method, and both are quietly load&ndash;bearing
+          for why this works.
+        </p>
+
+        <p>
+          <strong>1. The neural surrogate is not order-stable.</strong>
+          Classical Richardson assumes the solver is a method of known
+          order \(p\), so that the local error scales as \(h^{p+1}\). The
+          \(h\)-vs-\(h/2\) difference then has a clean leading term you
+          can read off. A neural network has no such guarantee. There is
+          no \(p\). The naive Richardson formula doesn't apply, and
+          empirically it collapses on these systems:
         </p>
 
         <figure class="figure figure-wide">
@@ -385,28 +758,47 @@
             <img src="assets/08_richardson.png" alt="Two-panel comparison. Left: AUROC of our step-doubling probe vs classical Richardson across horizons 2 to 64. Ours stays between 0.82 and 0.97 while classical Richardson drops to chance and below by horizon 4. Right: wall-time per evaluation, ours under 1 second, classical Richardson 78 to 1864 seconds." />
           </a>
           <figcaption class="caption">
-            Classical Richardson collapses to chance (AUROC&nbsp;~&nbsp;0.5)
-            by 4 simulator steps and stays there. Our step&ndash;doubling
-            probe holds AUROC between 0.82 and 0.97 across every horizon out
-            to 64, and is also two to three orders of magnitude cheaper to
-            compute: under one second per evaluation versus 78&ndash;1864
-            seconds for classical Richardson at the same horizons.
+            On the same Euler 2D test set, classical Richardson
+            extrapolation drops to chance (AUROC&nbsp;\(\approx\)&nbsp;0.5)
+            within four simulator steps and stays there. Our probe holds
+            AUROC between 0.82 and 0.97 across every horizon out to 64.
+            And because it costs two extra forward passes (under one
+            second per evaluation versus 78 to 1864 seconds for the
+            classical analogue) you can afford to run it everywhere.
           </figcaption>
         </figure>
 
         <p>
-          Multi&ndash;horizon training is what makes the trust signal work
-          where the textbook version doesn't.
+          <strong>2. Multi&ndash;horizon training is what makes the probe
+          informative.</strong> We don't just train the surrogate on the
+          end horizon \(T\). We train it on the whole base&ndash;2 ladder
+          \(\{1, 2, 4, 8, 16, 32, 64\}\) simultaneously. That training
+          curriculum is what teaches the network to behave consistently
+          across scales, which is what \(\hat{e}\) is measuring. A
+          single&ndash;horizon network would have nothing to disagree with
+          itself about. Step doubling without multi&ndash;horizon training
+          isn't a signal at all.
+        </p>
+
+        <p>
+          So: same intuition, completely different mechanics, completely
+          different regime. The classical version applies when you have
+          a method with known order. Ours applies when you've trained a
+          neural surrogate to be consistent across scales. The proof
+          that the surrogate generalises across three very different
+          systems is the same network beating the textbook check at
+          every horizon, on the same hardware, by orders of magnitude
+          in compute.
         </p>
       </div>
     </section>
 
     <!-- =================== CITATION =================== -->
-    <section class="section">
+    <section class="section section-band" id="citation">
       <div class="container">
         <h2 class="section-title">Citation</h2>
         <pre class="bibtex"><code>@misc{hybrid_neural_world_models_2026,
-  title   = {Hybrid Neural World Models for Physical Dynamics},
+  title   = {Hybrid Neural World Models},
   author  = {Lakshmanan, Pranav and Chopra, Paras},
   year    = {2026},
   note    = {lossfunk},
@@ -430,7 +822,7 @@
     </section>
 
     <!-- =================== ACKS =================== -->
-    <section class="section section-band">
+    <section class="section">
       <div class="container narrow">
         <h2 class="section-title">Acknowledgements</h2>
         <p>

@@ -130,9 +130,12 @@ button { font: inherit; cursor: pointer; }
   margin-bottom: 1.5rem;
 }
 .logo-mark {
-  height: 30px;
+  height: 44px;
   width: auto;
-  opacity: 0.92;
+  opacity: 0.95;
+}
+@media (min-width: 720px) {
+  .logo-mark { height: 52px; }
 }
 .kicker {
   font-family: "Inter", system-ui, sans-serif;
@@ -224,6 +227,207 @@ button { font: inherit; cursor: pointer; }
   font-family: "Inter", sans-serif;
   font-size: .85em;
   opacity: .8;
+}
+
+/* ===================================================================
+   TABLE OF CONTENTS
+   =================================================================== */
+
+.toc {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--rule);
+  padding: 1.75rem 0 2rem;
+}
+.toc-label {
+  margin: 0 0 .9rem;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: var(--fs-kicker);
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: none;
+  column-gap: 2rem;
+}
+.toc-list > li {
+  margin: 0 0 .35rem;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 1.02rem;
+  line-height: 1.4;
+  break-inside: avoid;
+}
+.toc-list > li > a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .5rem;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px dotted transparent;
+  padding-bottom: 1px;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.toc-list > li > a:hover,
+.toc-list > li > a:focus-visible {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.toc-list .toc-num {
+  display: inline-block;
+  min-width: 1.5em;
+  color: var(--ink-mute);
+  font-family: "Inter", sans-serif;
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  font-feature-settings: "tnum" 1;
+  text-align: right;
+}
+.toc-list ol {
+  list-style: none;
+  margin: .3rem 0 .55rem 2.1rem;
+  padding: 0;
+}
+.toc-list ol li {
+  margin: 0;
+  font-size: .94rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.toc-list ol li a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px dotted transparent;
+  padding-bottom: 1px;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.toc-list ol li a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+@media (min-width: 760px) {
+  .toc-list { column-count: 2; }
+}
+
+html { scroll-padding-top: 1.5rem; }
+
+/* ===================================================================
+   MATH DISPLAY
+   =================================================================== */
+
+.math-display {
+  margin: 1.5rem 0;
+  padding: .2rem 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.math-boxed {
+  background: var(--bg-card);
+  border-left: 3px solid var(--accent);
+  padding: .5rem 1rem .5rem 1.1rem;
+  border-radius: 0 4px 4px 0;
+}
+mjx-container {
+  font-size: 1em !important;
+}
+mjx-container[display="true"] {
+  display: block !important;
+  margin: 0 auto !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  text-align: center;
+}
+mjx-container[display="true"] svg {
+  max-width: 100% !important;
+  height: auto !important;
+}
+mjx-container:not([display="true"]) {
+  display: inline-block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  vertical-align: baseline !important;
+  line-height: 0 !important;
+  white-space: nowrap;
+}
+mjx-container:not([display="true"]) svg {
+  vertical-align: -0.16em;
+}
+/* prevent line-break-around-math even if MathJax adds wrappers */
+p mjx-container, li mjx-container, span mjx-container,
+td mjx-container, th mjx-container { white-space: nowrap; }
+
+/* ===================================================================
+   DATA TABLES
+   =================================================================== */
+
+.table-figure {
+  margin: 1.6rem 0 1.8rem;
+}
+.table-figure .data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: .88rem;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--bg-card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.data-table thead th {
+  background: var(--rule-soft);
+  color: var(--ink);
+  font-weight: 600;
+  text-align: left;
+  padding: .55rem .7rem;
+  border-bottom: 1px solid var(--rule);
+  font-feature-settings: "tnum" 1;
+}
+.data-table tbody th {
+  font-weight: 600;
+  text-align: left;
+  padding: .5rem .7rem;
+  border-right: 1px solid var(--rule);
+  background: rgba(0,0,0,.02);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.data-table tbody td {
+  padding: .45rem .7rem;
+  border-top: 1px solid var(--rule-soft);
+  font-feature-settings: "tnum" 1;
+  color: var(--ink-soft);
+}
+.data-table tbody td:first-of-type { font-weight: 500; color: var(--ink); }
+.data-table tbody tr:hover td,
+.data-table tbody tr:hover th { background: rgba(161, 59, 43, 0.04); }
+
+.table-figure .caption {
+  margin-top: .65rem;
+}
+
+/* mobile: let tables scroll horizontally */
+@media (max-width: 720px) {
+  .table-figure {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-left: calc(-1 * var(--pad-x));
+    margin-right: calc(-1 * var(--pad-x));
+    padding: 0 var(--pad-x);
+  }
+  .table-figure .data-table {
+    min-width: 32rem;
+    font-size: .82rem;
+  }
+  .table-figure .caption {
+    padding: 0 var(--pad-x);
+  }
 }
 
 /* ===================================================================
