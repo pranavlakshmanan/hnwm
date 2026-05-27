@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <meta name="description" content="Hybrid Neural World Models: one neural network predicts any horizon of a physical system in a single forward pass, and tells you when to trust its prediction. No labels needed." />
+  <meta property="og:title" content="Hybrid Neural World Models for Physical Dynamics" />
+  <meta property="og:description" content="One network. Any horizon. Label-free trust signal." />
+  <meta property="og:image" content="assets/summary_01_insight.png" />
+  <meta property="og:type" content="article" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="assets/summary_01_insight.png" />
+  <title>Hybrid Neural World Models for Physical Dynamics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a href="#main" class="skip">Skip to main content</a>
+
+  <header class="hero">
+    <div class="container">
+      <div class="hero-meta">
+        <img src="assets/lossfunk_logo.png" alt="lossfunk" class="logo-mark" />
+        <span class="kicker">lossfunk &middot; 2026</span>
+      </div>
+
+      <h1 class="hero-title">
+        Hybrid Neural World Models<br />
+        <span class="hero-subtitle">for Physical Dynamics</span>
+      </h1>
+
+      <p class="authors">
+        <a href="https://x.com/Avg_sapient" rel="noopener">Pranav Lakshmanan</a>
+        <span class="sep">&middot;</span>
+        <a href="https://x.com/paraschopra" rel="noopener">Paras Chopra</a>
+      </p>
+
+      <p class="tagline">
+        One network. Any horizon. Label-free trust signal.
+      </p>
+
+      <nav class="cta" aria-label="primary">
+        <a class="cta-btn primary" href="https://drive.google.com/file/d/1zxdUyhrt4ZfR0P4L_Ftz6FprIJYHNXjB/view?usp=drive_link" rel="noopener">
+          <span class="cta-icon" aria-hidden="true">&#9776;</span> Paper
+        </a>
+        <a class="cta-btn" href="https://github.com/Lossfunk/Hybrid-Neural-World-Models" rel="noopener">
+          <span class="cta-icon" aria-hidden="true">&#9001;/&#9002;</span> Code
+        </a>
+        <a class="cta-btn" href="https://huggingface.co/datasets/PraLak/Hybrid_Neural_World_Models" rel="noopener">
+          <span class="cta-icon" aria-hidden="true">&#9830;</span> Data
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- =================== TL;DR + HERO VIDEO =================== -->
+    <section class="section section-lede">
+      <div class="container">
+        <figure class="figure figure-bleed">
+          <video class="media" autoplay loop muted playsinline poster="assets/summary_01_insight.png">
+            <source src="assets/explainer_v7.mp4" type="video/mp4" />
+            Your browser does not support embedded video.
+          </video>
+          <figcaption class="caption">
+            The setup in 30 seconds: one neural network leaps any number of simulator steps ahead, and tells you when to trust the prediction.
+          </figcaption>
+        </figure>
+
+        <p class="lede">
+          The problem with neural physics simulators isn't speed. It's trust.
+          They can be seventy times faster than a classical solver and silently
+          go wrong at deployment with no way to know.
+        </p>
+
+        <p>
+          We trained a single neural network to leap an arbitrary number of
+          simulator steps ahead in one forward pass, across three very
+          different physical systems. Then we noticed something. If you ask
+          the network for the same future two ways, the disagreement between
+          the two answers is a label-free signal for when its prediction can
+          be trusted.
+        </p>
+
+        <p>
+          This page walks through the result on each system, the speed
+          numbers, the safety net that follows from the trust signal, and a
+          head-to-head against a 1910 textbook method that the modern version
+          beats by a wide margin.
+        </p>
+      </div>
+    </section>
+
+    <!-- =================== THE TRUST SIGNAL =================== -->
+    <section class="section">
+      <div class="container">
+        <h2 class="section-title">The trust signal, in one move</h2>
+
+        <p>
+          Train one network <em>f</em> to predict the state of a physical
+          system at any horizon <em>h</em> in one shot. For any future you
+          care about, you can now ask the same question two ways:
+        </p>
+
+        <ul class="plain-list">
+          <li><strong>The direct answer:</strong> <em>f(s, h)</em> &ndash; jump <em>h</em> steps in one forward pass.</li>
+          <li><strong>The doubled answer:</strong> <em>f(f(s, h/2), h/2)</em> &ndash; take two half-steps and compose.</li>
+        </ul>
+
+        <p>
+          The two answers should match. When they don't, the network is
+          telling you it doesn't know what happens next. We call this
+          disagreement <em>&ecirc;</em>, the step-doubling probe. It needs no
+          ground-truth labels at deployment time and falls out of the same
+          forward passes you already have to run.
+        </p>
+
+        <figure class="figure">
+          <img src="assets/summary_01_insight.png" alt="Three-panel diagram: chemical input at time t, neural prediction at t+64 steps, and a trust signal map highlighting where the network expects to be wrong." />
+          <figcaption class="caption">
+            From a chemical concentration field at time <em>t</em>, the network
+            predicts the field 64 simulator steps later in one shot. The third
+            panel is the step-doubling probe, a label-free trust signal that
+            highlights exactly where the prediction is fragile.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== THREE PHYSICAL SYSTEMS =================== -->
+    <section class="section section-band">
+      <div class="container">
+        <h2 class="section-title">Three different physical systems, one recipe</h2>
+        <p>
+          The trust signal isn't tuned to a particular equation. Below it
+          works on a reaction&ndash;diffusion PDE, on compressible gas flow,
+          and on rigid&ndash;body contact dynamics, all with the same training
+          recipe and the same probe.
+        </p>
+      </div>
+    </section>
+
+    <!-- =================== ENV 1: OREGONATOR =================== -->
+    <section class="section env">
+      <div class="container">
+        <p class="env-tag">Environment 1 &middot; Reaction&ndash;diffusion PDE</p>
+        <h3 class="env-title">Belousov&ndash;Zhabotinsky waves</h3>
+
+        <p>
+          The Oregonator model captures the Belousov&ndash;Zhabotinsky
+          reaction: a real chemistry experiment where colored waves and
+          spirals spontaneously appear and travel across a dish. Mathematically
+          it's a two-variable reaction&ndash;diffusion PDE on a 256&times;256
+          periodic grid.
+        </p>
+
+        <figure class="figure figure-pair">
+          <video class="media" autoplay loop muted playsinline preload="metadata" poster="assets/oregonator_poster.jpg">
+            <source src="assets/oregonator.mp4" type="video/mp4" />
+          </video>
+          <figcaption class="caption">
+            A spiral wave evolving over time in the Oregonator simulation. One
+            of the trajectories the network is trained to predict.
+          </figcaption>
+        </figure>
+
+        <p>
+          The network is asked to skip 64 simulator steps ahead in a single
+          forward pass. Column 4 below is what the step-doubling probe
+          predicts the error will look like. Column 5 is the actual error
+          against ground truth, which the network never sees at deployment.
+          They match.
+        </p>
+
+        <figure class="figure figure-wide">
+          <a class="figure-zoom" href="assets/02_oregonator_visual.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
+            <img src="assets/02_oregonator_visual.png" alt="Five-column panel showing input field, network prediction, ground truth, predicted error map, and true error map for the Oregonator system. The predicted and true error maps look visually similar." />
+          </a>
+          <figcaption class="caption">
+            The network flags where it's about to go wrong without ever seeing
+            the ground truth.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== ENV 2: EULER 2D =================== -->
+    <section class="section env">
+      <div class="container">
+        <p class="env-tag">Environment 2 &middot; Compressible flow PDE</p>
+        <h3 class="env-title">Euler equations in 2D</h3>
+
+        <p>
+          The compressible Euler equations are the math behind aerodynamics:
+          shocks, contact discontinuities, vortex sheets. Same network
+          architecture, same training recipe, completely different physics.
+        </p>
+
+        <figure class="figure figure-pair">
+          <video class="media" autoplay loop muted playsinline preload="metadata" poster="assets/euler_poster.jpg">
+            <source src="assets/euler.mp4" type="video/mp4" />
+          </video>
+          <figcaption class="caption">
+            A 2D compressible flow trajectory: density evolving as shocks
+            collide and travel across the domain.
+          </figcaption>
+        </figure>
+
+        <figure class="figure figure-wide">
+          <a class="figure-zoom" href="assets/03_euler_visual.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
+            <img src="assets/03_euler_visual.png" alt="Five-column panel showing input density, prediction, ground truth, predicted error map, and true error map for the Euler 2D system." />
+          </a>
+          <figcaption class="caption">
+            Different equations, different solutions, same probe. The
+            predicted error map (col 4) localizes the actual error pattern
+            (col 5) along the moving shock fronts.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== ENV 3: BALL 3D =================== -->
+    <section class="section env">
+      <div class="container">
+        <p class="env-tag">Environment 3 &middot; Rigid&ndash;body ODE</p>
+        <h3 class="env-title">3D contact dynamics in MuJoCo</h3>
+
+        <p>
+          Not just PDEs. The same approach works on rigid&ndash;body physics
+          too: six balls bouncing in a 3D box, simulated in MuJoCo, with
+          stiff elastic contact.
+        </p>
+
+        <figure class="figure figure-pair">
+          <video class="media" autoplay loop muted playsinline preload="metadata" poster="assets/ball3d_poster.jpg">
+            <source src="assets/ball3d.mp4" type="video/mp4" />
+          </video>
+          <figcaption class="caption">
+            Multi&ndash;ball MuJoCo trajectory. State is per&ndash;ball
+            position, linear velocity, and angular velocity.
+          </figcaption>
+        </figure>
+
+        <figure class="figure figure-wide">
+          <a class="figure-zoom" href="assets/04_ball3d_visual.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
+            <img src="assets/04_ball3d_visual.png" alt="Per-ball prediction visualization showing predicted vs ground truth positions for several balls, with a per-ball error magnitude bar that matches a step-doubling estimate." />
+          </a>
+          <figcaption class="caption">
+            No grid this time. The probe gives a per&ndash;ball score that
+            ranks which ball's predicted position is least reliable. One
+            recipe, three very different state spaces.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== MULTI-HORIZON =================== -->
+    <section class="section section-band">
+      <div class="container">
+        <h2 class="section-title">One network, every horizon at once</h2>
+        <p>
+          The same set of weights is trained to predict horizons of
+          2, 4, 8, 16, 32, and 64 simulator steps simultaneously. At
+          deployment you ask for whichever one you want.
+        </p>
+
+        <figure class="figure figure-wide">
+          <a class="figure-zoom" href="assets/05a_horizons_oreg.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
+            <img src="assets/05a_horizons_oreg.png" alt="A grid of error maps at increasing horizons. Each column is a horizon (2 through 64 steps). The top row is the predicted error map, the bottom row is the actual error. They track each other at every horizon." />
+          </a>
+          <figcaption class="caption">
+            Predicted&ndash;error maps (top row) versus true error (bottom)
+            at horizons 2 through 64 on the Oregonator. The probe stays
+            informative across more than an order of magnitude in horizon
+            length. This is the property that unlocks the two deployment
+            modes below.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== SPEED =================== -->
+    <section class="section">
+      <div class="container">
+        <h2 class="section-title">Now the speed</h2>
+
+        <p>
+          At horizon 64 the surrogate runs roughly seventy times faster than
+          the reference classical solver on the reaction&ndash;diffusion PDE,
+          and twenty&ndash;five times faster on Euler 2D, measured on the
+          same CPU. One neural forward pass replaces a chain of 64 sequential
+          solver steps. Each of those steps is heavy floating&ndash;point work
+          over a 256&times;256 grid. The network skips straight to the end.
+        </p>
+
+        <figure class="figure figure-wide">
+          <a class="figure-zoom" href="assets/06_speedup.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
+            <img src="assets/06_speedup.png" alt="Bar chart comparing wall-clock cost of one neural forward pass vs 64 sequential classical solver steps, on a 256x256 grid, on the same CPU. The neural bar is dramatically shorter." />
+          </a>
+          <figcaption class="caption">
+            Wall&ndash;clock cost of one neural forward pass (horizon 64) vs
+            the chain of 64 classical solver steps it replaces, same CPU,
+            same accuracy class.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== MODE 2: TRUST-GATED FALLBACK =================== -->
+    <section class="section section-band">
+      <div class="container">
+        <h2 class="section-title">Mode 2: a built&ndash;in safety net</h2>
+
+        <p>
+          The two deployment modes the trust signal enables.
+        </p>
+
+        <ul class="plain-list mode-list">
+          <li>
+            <span class="mode-tag">Mode 1</span>
+            The surrogate runs alone. Maximum speedup, no fallback. Good when
+            average accuracy is fine and a few outliers don't matter.
+          </li>
+          <li>
+            <span class="mode-tag">Mode 2</span>
+            Let the trust signal route the easy trajectories through the
+            network and send the high&ndash;<em>&ecirc;</em> ones to the
+            classical solver instead. You pick the threshold, you pick the
+            cost vs accuracy point.
+          </li>
+        </ul>
+
+        <figure class="figure">
+          <img src="assets/07_mode2.png" alt="Three bar groups (one per system) comparing trajectory error of Mode 1 vs Mode 2. Mode 2 bars are about half as tall." />
+          <figcaption class="caption">
+            Mode 2 cuts trajectory error by 43&ndash;52% across all three
+            systems, while keeping most of the Mode&nbsp;1 speedup.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== PARETO =================== -->
+    <section class="section">
+      <div class="container">
+        <h2 class="section-title">The deployment dial</h2>
+
+        <p>
+          Sliding the trust threshold moves you anywhere along the
+          speed&ndash;vs&ndash;accuracy frontier. No retraining, no extra
+          network. One knob.
+        </p>
+
+        <figure class="figure figure-wide">
+          <a class="figure-zoom" href="assets/06_pareto.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
+            <img src="assets/06_pareto.png" alt="Pareto frontier plot: speedup on the x-axis, trajectory error on the y-axis, with curves per environment showing the trust-threshold sweep." />
+          </a>
+          <figcaption class="caption">
+            Speed vs accuracy frontier across modes and environments. A
+            single trust threshold parameter moves you along each curve.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== RICHARDSON =================== -->
+    <section class="section section-band">
+      <div class="container">
+        <h2 class="section-title">Beating the 1910 textbook method</h2>
+
+        <p>
+          Step doubling has a long pedigree. Lewis Fry Richardson wrote down
+          the classical version of this idea in 1910 for ODE solvers. We ran
+          his check head&ndash;to&ndash;head against ours on Euler 2D, and
+          the modern version wins on both axes.
+        </p>
+
+        <figure class="figure figure-wide">
+          <a class="figure-zoom" href="assets/08_richardson.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
+            <img src="assets/08_richardson.png" alt="Two-panel comparison. Left: AUROC of our step-doubling probe vs classical Richardson across horizons 2 to 64. Ours stays between 0.82 and 0.97 while classical Richardson drops to chance and below by horizon 4. Right: wall-time per evaluation, ours under 1 second, classical Richardson 78 to 1864 seconds." />
+          </a>
+          <figcaption class="caption">
+            Classical Richardson collapses to chance (AUROC&nbsp;~&nbsp;0.5)
+            by 4 simulator steps and stays there. Our step&ndash;doubling
+            probe holds AUROC between 0.82 and 0.97 across every horizon out
+            to 64, and is also two to three orders of magnitude cheaper to
+            compute: under one second per evaluation versus 78&ndash;1864
+            seconds for classical Richardson at the same horizons.
+          </figcaption>
+        </figure>
+
+        <p>
+          Multi&ndash;horizon training is what makes the trust signal work
+          where the textbook version doesn't.
+        </p>
+      </div>
+    </section>
+
+    <!-- =================== CITATION =================== -->
+    <section class="section">
+      <div class="container">
+        <h2 class="section-title">Citation</h2>
+        <pre class="bibtex"><code>@misc{hybrid_neural_world_models_2026,
+  title   = {Hybrid Neural World Models for Physical Dynamics},
+  author  = {Lakshmanan, Pranav and Chopra, Paras},
+  year    = {2026},
+  note    = {lossfunk},
+  url     = {https://github.com/Lossfunk/Hybrid-Neural-World-Models}
+}</code></pre>
+        <div class="resource-row">
+          <a class="resource" href="https://drive.google.com/file/d/1zxdUyhrt4ZfR0P4L_Ftz6FprIJYHNXjB/view?usp=drive_link" rel="noopener">
+            <span class="resource-label">Paper PDF</span>
+            <span class="resource-meta">Preprint, 2026</span>
+          </a>
+          <a class="resource" href="https://github.com/Lossfunk/Hybrid-Neural-World-Models" rel="noopener">
+            <span class="resource-label">Source code</span>
+            <span class="resource-meta">github.com/Lossfunk</span>
+          </a>
+          <a class="resource" href="https://huggingface.co/datasets/PraLak/Hybrid_Neural_World_Models" rel="noopener">
+            <span class="resource-label">Trajectory dataset</span>
+            <span class="resource-meta">3 systems, train + val + test + OOD</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== ACKS =================== -->
+    <section class="section section-band">
+      <div class="container narrow">
+        <h2 class="section-title">Acknowledgements</h2>
+        <p>
+          Thanks to
+          <a href="https://x.com/AWSCloudIndia" rel="noopener">@awscloudindia</a>
+          for the generous compute credits to lossfunk that made this research
+          possible.
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <img src="assets/lossfunk_logo.png" alt="lossfunk" class="logo-mark footer-logo" />
+      <p class="footer-copy">
+        Built at <a href="https://x.com/lossfunk" rel="noopener">lossfunk</a>.
+        Contact:
+        <a href="https://x.com/Avg_sapient" rel="noopener">Pranav</a> &middot;
+        <a href="https://x.com/paraschopra" rel="noopener">Paras</a>.
+      </p>
+      <p class="footer-year">&copy; 2026</p>
+    </div>
+  </footer>
+
+</body>
+</html>
