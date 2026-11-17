@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="color-scheme" content="light" />
   <meta name="description" content="Hybrid Neural World Models: one neural network predicts any horizon of a physical system in a single forward pass, and tells you when to trust its prediction. No labels needed." />
-  <meta property="og:title" content="Hybrid Neural World Models" />
-  <meta property="og:description" content="One network. Any horizon. Label-free trust signal." />
+  <meta property="og:title" content="Hybrid Neural World Models for Physical Dynamics (NeurIPS 2026 Main Track)" />
+  <meta property="og:description" content="NeurIPS 2026 Main Track. One network. Any horizon. Label-free trust signal." />
   <meta property="og:image" content="assets/summary_01_insight.png" />
   <meta property="og:type" content="article" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:image" content="assets/summary_01_insight.png" />
-  <title>Hybrid Neural World Models</title>
+  <title>Hybrid Neural World Models for Physical Dynamics | NeurIPS 2026 Main Track</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -35,11 +35,15 @@
     <div class="container">
       <div class="hero-meta">
         <img src="assets/lossfunk_logo.png" alt="lossfunk" class="logo-mark" />
-        <span class="kicker">lossfunk &middot; 2026</span>
+        <span class="kicker">lossfunk &middot; NeurIPS 2026</span>
       </div>
 
+      <p class="venue-badge">
+        <a href="https://openreview.net/forum?id=uWsmvC2jq5" rel="noopener">Accepted at NeurIPS 2026 &middot; Main Track</a>
+      </p>
+
       <h1 class="hero-title">
-        Hybrid Neural World Models
+        Hybrid Neural World Models for Physical Dynamics
       </h1>
 
       <p class="authors">
@@ -53,8 +57,11 @@
       </p>
 
       <nav class="cta" aria-label="primary">
-        <a class="cta-btn primary" href="https://arxiv.org/abs/2605.28317" rel="noopener">
-          <span class="cta-icon" aria-hidden="true">&#9776;</span> Paper
+        <a class="cta-btn primary" href="https://openreview.net/forum?id=uWsmvC2jq5" rel="noopener">
+          <span class="cta-icon" aria-hidden="true">&#9776;</span> Paper (OpenReview)
+        </a>
+        <a class="cta-btn" href="https://arxiv.org/abs/2605.28317" rel="noopener">
+          <span class="cta-icon" aria-hidden="true">&#9998;</span> arXiv preprint
         </a>
         <a class="cta-btn" href="https://github.com/Lossfunk/Hybrid-Neural-World-Models" rel="noopener">
           <span class="cta-icon" aria-hidden="true">&#9001;/&#9002;</span> Code
@@ -110,7 +117,7 @@
 
         <p class="lede">
           Neural physics simulators are fast. The hard part is knowing when
-          to trust them: a surrogate can run 70x faster than a classical
+          to trust them: a surrogate can run 72x faster than a classical
           solver and quietly produce nonsense at deployment.
         </p>
 
@@ -120,15 +127,15 @@
           systems. Asking the same network for the same future in two
           different ways gives back two predictions. The disagreement
           between them is a per&ndash;cell trust signal that needs no
-          ground&ndash;truth labels and falls out of forward passes we
-          already had to run.
+          ground&ndash;truth labels and costs two extra forward passes
+          of the same network.
         </p>
 
         <p>
           The rest of this page covers the recipe, the per&ndash;environment
           results, the speedup numbers, the safety net the trust signal
-          enables at deployment, and a head&ndash;to&ndash;head against the
-          classical analogue.
+          enables at deployment, a comparison with conformal prediction,
+          and how the probe relates to classical step doubling.
         </p>
       </div>
     </section>
@@ -157,7 +164,11 @@
 
         <p>
           where \(\tilde{\cdot}\) denotes per-channel normalisation by
-          training-set statistics. For any future you care about, the
+          training-set statistics. In the main runs, 10% of the loss is a
+          two&ndash;step composition term: the network's own half&ndash;horizon
+          prediction is fed back in, and the composed answer is also
+          supervised against the stored ground truth (no solver is called
+          during training). For any future you care about, the
           trained network can answer the same question two ways:
         </p>
 
@@ -244,8 +255,10 @@
           The objective looks attractive because it needs no labels. It
           also has an easy global minimum that has nothing to do with
           physics: the identity map \(f_\theta(s, T) = s\) satisfies
-          self&ndash;consistency exactly. Gradient descent finds it inside
-          one epoch, on every system we tried:
+          self&ndash;consistency exactly. Gradient descent drives
+          \(\mathcal{L}_{\text{SC}}\) down by about three orders of
+          magnitude, to \(\sim 10^{-6}\), within 5&ndash;10 epochs on
+          both systems we tried:
         </p>
 
         <figure class="table-figure">
@@ -256,7 +269,7 @@
                 <th>epoch</th>
                 <th>\(\mathcal{L}_{\text{SC}}\)</th>
                 <th>val MSE vs GT</th>
-                <th>trivial&ndash;fixed&ndash;point distance</th>
+                <th>\(\mathrm{MSE}\big(f_\theta(s, T),\, s\big)\)</th>
               </tr>
             </thead>
             <tbody>
@@ -272,10 +285,11 @@
           </table>
           <figcaption class="caption">
             Trained with self&ndash;consistency alone, \(\mathcal{L}_{\text{SC}}\)
-            crashes to \(\sim 10^{-6}\) inside one epoch and the network
-            sits on \(f_\theta(s, T)\approx s\). On Euler 2D the validation
-            MSE against ground truth is in the range 1.4 to 13 (ground
-            truth is \(\mathcal{O}(1)\)). The model has perfectly
+            falls to \(\sim 10^{-6}\) within 5&ndash;10 epochs and the
+            network sits on \(f_\theta(s, T)\approx s\) (last column). On
+            Euler 2D the validation MSE against ground truth stays between
+            5.8 and 9.4 at the epochs shown (ground truth is
+            \(\mathcal{O}(1)\)). The model has perfectly
             satisfied the constraint and learned nothing.
           </figcaption>
         </figure>
@@ -299,8 +313,9 @@
           reaction&ndash;diffusion PDE, a nonlinear hyperbolic conservation
           law, and a rigid&ndash;body ODE with discrete collision events.
           The dynamics, the natural state space, and the reference
-          numerical method are all different. The surrogate and the probe
-          are the same.
+          numerical method are all different. The training recipe and the
+          probe are the same; the backbone is a U&ndash;Net on the two grid
+          PDEs and a FiLM&ndash;conditioned MLP on Ball&nbsp;3D.
         </p>
       </div>
     </section>
@@ -331,11 +346,15 @@
 
         <p>
           on a 256&times;256 periodic grid in non&ndash;dimensional units
-          (\(D{=}1,\ \varepsilon{=}0.05,\ q{=}0.002,\ f{=}2.0\)).
-          <strong>Reference solver:</strong> IMEX Strang&ndash;splitting,
-          explicit finite&ndash;volume for the diffusion, implicit Euler
-          for the reaction stiffness. Roughly 200 substeps per
-          horizon&ndash;64 prediction.
+          (\(D{=}1,\ q{=}0.002\), with \(\varepsilon \sim \mathcal{U}(0.02, 0.08)\)
+          and \(f \sim \mathcal{U}(0.5, 2.0)\) drawn per training
+          trajectory).
+          <strong>Reference solver:</strong> Strang splitting, with
+          explicit FTCS finite differences (5&ndash;point Laplacian,
+          CFL&ndash;limited substeps) for the diffusion and implicit Euler,
+          solved by Newton iteration, for the stiff reaction. One
+          simulator step is \(\Delta t{=}0.05\), so an \(h{=}64\)
+          prediction replaces 64 Strang steps.
         </p>
 
         <figure class="figure figure-pair">
@@ -371,11 +390,11 @@
 
         <figure class="figure figure-wide">
           <a class="figure-zoom" href="assets/02_oregonator_visual.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
-            <img src="assets/02_oregonator_visual.png" alt="Five-column panel: input field, network prediction, ground truth, predicted error map, and true error map for the Oregonator system." />
+            <img src="assets/02_oregonator_visual.png" alt="Five-column panel: input field, ground truth, network prediction, predicted error map, and true error map for the Oregonator system." />
           </a>
           <figcaption class="caption">
-            The static publication view at \(h{=}64\): input, prediction,
-            ground truth, \(\hat{e}\), and true error.
+            The static publication view at \(h{=}64\): input, ground
+            truth, prediction, \(\hat{e}\), and true error.
           </figcaption>
         </figure>
       </div>
@@ -407,11 +426,13 @@
         <p>
           with fluxes \(\mathbf{F},\mathbf{G}\) determined by the
           equation of state \(p = (\gamma{-}1)\!\left(E - \tfrac{1}{2}\rho(u^2{+}v^2)\right)\),
-          \(\gamma=1.4\). We solve on a 128&times;128 grid with shock&ndash;tube
-          and Riemann initial conditions.
-          <strong>Reference solver:</strong> finite&ndash;volume with HLL
-          Riemann solver, MUSCL&ndash;Hancock reconstruction for second
-          order in space and time, CFL&ndash;limited explicit stepping.
+          \(\gamma=1.4\). We solve on a 128&times;128 grid with outflow
+          boundaries. Initial conditions are 2D Riemann problems
+          (Schulz&ndash;Rinne configurations 3, 4, 6 and 12) and Sedov
+          blasts.
+          <strong>Reference solver:</strong> first&ndash;order Godunov
+          finite&ndash;volume with the HLL Riemann solver and explicit
+          stepping at CFL 0.4.
         </p>
 
         <figure class="figure figure-wide">
@@ -430,12 +451,14 @@
 
         <figure class="figure figure-wide">
           <a class="figure-zoom" href="assets/03_euler_visual.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
-            <img src="assets/03_euler_visual.png" alt="Five-column panel showing input density, prediction, ground truth, predicted error map, and true error map for the Euler 2D system." />
+            <img src="assets/03_euler_visual.png" alt="Five-column panel showing input density, ground truth, prediction, predicted error map, and true error map for the Euler 2D system." />
           </a>
           <figcaption class="caption">
-            The static publication view at \(h{=}64\): input, prediction,
-            ground truth, \(\hat{e}\), and true error. The trust map
-            concentrates along the moving shock fronts.
+            The static publication view at \(h{=}32\) on a
+            Schulz&ndash;Rinne quadrant problem: input, ground truth,
+            prediction, \(\hat{e}\), and true error. The trust map
+            concentrates on the quadrant interfaces, where the true error
+            lives.
           </figcaption>
         </figure>
       </div>
@@ -449,7 +472,8 @@
 
         <p>
           The third system is a rigid&ndash;body ODE: balls flying around
-          a 3D box under gravity with near&ndash;elastic wall collisions.
+          a 3D box under gravity with partially elastic wall collisions
+          (restitution 0.70&ndash;0.95).
           Between bounces the dynamics are classical kinematics,
         </p>
 
@@ -468,9 +492,10 @@
           \(\mathbf{v}_n \to -e\,\mathbf{v}_n,\ \mathbf{v}_t \to \mathbf{v}_t\).
           Per&ndash;ball state is the 9&ndash;vector
           \((\mathbf{x},\dot{\mathbf{x}},\boldsymbol{\omega})\in\mathbb{R}^{9}\).
-          <strong>Reference solver:</strong> the closed&ndash;form analytic
-          flow, with wall&ndash;hit times found by quadratic
-          root&ndash;finding. Pure numpy.
+          <strong>Reference solver:</strong> a semi&ndash;implicit Euler
+          integrator with 50 substeps per frame, projecting the ball back
+          inside the box and reflecting the normal velocity at every
+          substep. Pure NumPy.
         </p>
 
         <figure class="figure figure-pair">
@@ -489,9 +514,9 @@
           </a>
           <figcaption class="caption">
             \(\hat{e}\) on rigid bodies gives a per&ndash;ball score
-            (column 4) that closely matches the actual error
-            (column 5). Same architecture, same training recipe, three
-            different state spaces.
+            (column 4) that tracks the actual error (column 5). Same
+            training recipe and probe, a different backbone and state
+            space.
           </figcaption>
         </figure>
       </div>
@@ -511,11 +536,12 @@
 
         <figure class="figure figure-wide">
           <a class="figure-zoom" href="assets/05a_horizons_oreg.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
-            <img src="assets/05a_horizons_oreg.png" alt="A grid of error maps at increasing horizons. Each column is a horizon (2 through 64 steps). The top row is the predicted error map, the bottom row is the actual error. They track each other at every horizon." />
+            <img src="assets/05a_horizons_oreg.png" alt="A grid with one row per horizon (2, 8, 32, 64 steps). Columns show the input, the true future, the surrogate prediction, the step-doubling error map, and the true error. The two error maps track each other at every horizon." />
           </a>
           <figcaption class="caption">
-            Trust&ndash;signal map (top) versus true error (bottom) at
-            horizons 2 through 64 on the Oregonator. The probe stays
+            Oregonator, one row per horizon \(h \in \{2, 8, 32, 64\}\).
+            Columns: input, true future, surrogate prediction,
+            \(\hat{e}\), and true error. The probe stays
             informative across more than an order of magnitude in
             horizon length. This is the property the two deployment
             modes below rely on.
@@ -539,36 +565,39 @@
         </p>
 
         <ul class="plain-list">
-          <li><strong>Oregonator (vs IMEX&ndash;Strang):</strong> 72x at \(h{=}64,\ B{=}1\).</li>
-          <li><strong>Euler 2D (vs HLL+MUSCL):</strong> 25x at \(h{=}64,\ B{=}1\).</li>
-          <li><strong>Ball 3D (vs analytic flow):</strong> 0.34x at \(B{=}1\) (the analytic solver is already a tenth of a millisecond per call). The surrogate flips this once you batch: 0.005&nbsp;ms per pair at \(B{=}128\) gives 31x over a single&ndash;trajectory solver call.</li>
+          <li><strong>Oregonator (vs Strang&ndash;split solver):</strong> 72x at \(h{=}64,\ B{=}1\).</li>
+          <li><strong>Euler 2D (vs HLL finite&ndash;volume):</strong> 26x at \(h{=}64,\ B{=}1\).</li>
+          <li><strong>Ball 3D (vs NumPy collision integrator):</strong> the solver is sub&ndash;millisecond per step, which leaves no room for a single surrogate call to win at \(B{=}1\).</li>
         </ul>
 
         <p>
-          When the surrogate is on GPU and the solver on its native CPU
-          implementation (the deployment most users will actually run),
-          single&ndash;trajectory speedups grow to 791x / 109x / 0.23x at
-          \(B{=}1\), and the Ball&nbsp;3D advantage scales linearly with
-          batch size.
+          With the surrogate on GPU and the solver unbatched on CPU, at
+          \(h{=}64\) across batch sizes, the PDE surrogates saturate near
+          \(B{=}1\) at 734x on Oregonator and 186x on Euler 2D. Ball&nbsp;3D
+          recovers from below the solver baseline at \(B{=}1\) to 31x at
+          \(B{=}128\), the regime where many trajectories run in parallel.
+          These GPU numbers compare a batched surrogate against an
+          unbatched solver; JAX/JIT or GPU&ndash;vectorised solvers would
+          shrink them. The same&ndash;CPU numbers above do not have this
+          caveat.
         </p>
 
         <p>
-          Step doubling at deployment costs two extra forward passes, a
-          3x overhead on the surrogate. Trust&ndash;instrumented inference
-          at \(h{=}64,\ B{=}1\) is still 264x / 36x / 0.08x faster on the
-          GPU&ndash;vs&ndash;CPU comparison.
+          Step doubling at deployment costs two extra forward passes, so
+          trust&ndash;instrumented inference costs three times the
+          surrogate alone.
         </p>
 
         <figure class="figure figure-wide">
           <a class="figure-zoom" href="assets/06_speedup.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
-            <img src="assets/06_speedup.png" alt="Two-panel figure: left shows surrogate vs solver wall-time across horizons on the same CPU; right shows speedup as a function of batch size on Ball 3D." />
+            <img src="assets/06_speedup.png" alt="Two-panel figure: left shows same-CPU speedup over the reference solver across horizons; right shows GPU surrogate speedup over the unbatched CPU solver as a function of batch size for all three systems." />
           </a>
           <figcaption class="caption">
-            Left: same&ndash;CPU speedup over the classical solver as a
-            function of horizon. Right: speedup on Ball&nbsp;3D as
-            inference is batched, where the surrogate's linear scaling
-            with batch size pulls ahead of the per&ndash;call analytic
-            solver.
+            Left: same&ndash;CPU speedup over the reference solver as a
+            function of horizon at \(B{=}1\). Right: GPU surrogate versus
+            the unbatched CPU solver at \(h{=}64\) across batch sizes, for
+            all three systems. The dashed line marks the solver
+            baseline.
           </figcaption>
         </figure>
       </div>
@@ -602,12 +631,14 @@
         </ul>
 
         <figure class="figure">
-          <img src="assets/07_mode2.png" alt="Three bar groups (one per system) comparing trajectory error of Mode 1 vs Mode 2. Mode 2 bars are about half as tall." />
+          <img src="assets/07_mode2_cr.png" alt="Three bar groups (one per system) comparing trajectory-mean RMSE of Mode 1 and Mode 2 at h=64. Mode 2 bars are roughly half as tall." />
           <figcaption class="caption">
-            At \(q{=}0.75\) (defer 25% of trajectories to the classical
-            solver), Mode 2 cuts surrogate RMSE by 46&ndash;63% on the
-            in&ndash;distribution splits and up to 70% on the
-            out&ndash;of&ndash;distribution far splits.
+            Test split, \(h{=}64\), \(q{=}0.75\) (defer 25% of
+            trajectories to the reference solver). Mode 2 cuts
+            trajectory&ndash;mean RMSE by 42&ndash;48% while keeping about 3x
+            effective speedup. Across all 54 cells (3 systems &times; 6
+            horizons &times; 3 splits) the cut ranges from 28% to 79%, always
+            above the 25% that random deferral would give.
           </figcaption>
         </figure>
       </div>
@@ -655,6 +686,9 @@
             very aggressive deferral (\(q{=}0.5\)) to barely any
             (\(q{=}0.9\)). On the Oregonator out&ndash;of&ndash;distribution
             far split, even deferring 10% of trajectories cuts RMSE 20%.
+            This sweep uses a separate 80&ndash;pair seed&ndash;0 sample,
+            so its \(q{=}0.75\) column differs slightly from the figure
+            above.
           </figcaption>
         </figure>
       </div>
@@ -673,11 +707,16 @@
 
         <figure class="figure figure-wide">
           <a class="figure-zoom" href="assets/06_pareto.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
-            <img src="assets/06_pareto.png" alt="Pareto frontier plot: speedup on the x-axis, trajectory error on the y-axis, with curves per environment showing the trust-threshold sweep." />
+            <img src="assets/06_pareto.png" alt="Two-panel figure: left shows speedup versus horizon for Mode 1 and Mode 2; right shows the speed-accuracy Pareto frontier per environment as the trust threshold sweeps." />
           </a>
           <figcaption class="caption">
-            Speed vs accuracy frontier across modes and environments. A
-            single trust threshold parameter moves you along each curve.
+            Left: same&ndash;CPU speedup versus horizon for Mode 1
+            (solid) and Mode 2 at \(q{=}0.75\) (dashed). This panel scales
+            a single \(h{=}64\) timing, so it reads 70x and 25x rather
+            than the 72x and 26x measured per horizon in the Speed
+            section. Right: the Pareto frontier in (RMSE, speedup) at
+            \(h{=}64\). Each curve runs from Mode 1 (fastest) through
+            Mode 2 as \(q\) decreases; one threshold moves you along it.
           </figcaption>
         </figure>
       </div>
@@ -765,8 +804,10 @@
             </tbody>
           </table>
           <figcaption class="caption">
-            Conformal lands well on Euler, where shock&ndash;tube initial
-            conditions are visually distinctive enough for KNN to find
+            Means over horizons \(h \in \{2, \dots, 64\}\), 60 test
+            pairs per horizon. Conformal lands well on Euler, where the
+            Riemann&ndash;quadrant and Sedov initial conditions are
+            visually distinctive enough for KNN to find
             useful neighbours. On Oregonator it collapses: every initial
             condition looks similar, so the embedding is uninformative
             and the procedure degenerates. Coverage also drops badly
@@ -801,26 +842,8 @@
           \(h\)&ndash;vs&ndash;\(h/2\) difference, divide by
           \(2^{p+1}-1\), and you get a calibrated error estimate. A
           trained neural network has no such order. There is nothing to
-          divide by, and applying the formula anyway gives a noisy,
-          uninformative signal on these systems:
+          divide by.
         </p>
-
-        <figure class="figure figure-wide">
-          <a class="figure-zoom" href="assets/08_richardson.png" target="_blank" rel="noopener" aria-label="Open full-resolution figure in a new tab">
-            <img src="assets/08_richardson.png" alt="Two-panel comparison. Left: AUROC of step-doubling probe vs classical Richardson across horizons 2 to 64. Right: wall-time per evaluation." />
-          </a>
-          <figcaption class="caption">
-            On the same Euler 2D test set, the classical Richardson
-            formula drops to chance (AUROC&nbsp;\(\approx\)&nbsp;0.5)
-            within four simulator steps and stays there. The
-            step&ndash;doubling probe holds AUROC between 0.82 and 0.97
-            across every horizon out to 64. The probe is also two to
-            three orders of magnitude cheaper to compute, costing two
-            extra forward passes (under one second per evaluation)
-            against the 78&ndash;1864 seconds the classical analogue
-            needs at the same horizons.
-          </figcaption>
-        </figure>
 
         <p>
           What replaces the order assumption is the multi&ndash;horizon
@@ -836,10 +859,9 @@
           The recipe travels because the assumption it relies on
           (multi&ndash;horizon training produces a network whose two
           paths agree on what it has learned) is structural, not
-          equation&ndash;specific. The same network and the same probe
+          equation&ndash;specific. The same recipe and the same probe
           carry across reaction&ndash;diffusion, compressible flow, and
-          rigid&ndash;body physics, and beat the textbook check at every
-          horizon by orders of magnitude in compute.
+          rigid&ndash;body physics.
         </p>
       </div>
     </section>
@@ -848,7 +870,15 @@
     <section class="section section-band" id="citation">
       <div class="container">
         <h2 class="section-title">Citation</h2>
-        <pre class="bibtex"><code>@misc{hybrid_neural_world_models_2026,
+        <pre class="bibtex"><code>@inproceedings{lakshmanan2026hybrid,
+  title     = {Hybrid Neural World Models for Physical Dynamics},
+  author    = {Lakshmanan, Pranav and Chopra, Paras},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2026},
+  url       = {https://openreview.net/forum?id=uWsmvC2jq5}
+}
+
+@misc{hybrid_neural_world_models_2026,
   title         = {Hybrid Neural World Models},
   author        = {Lakshmanan, Pranav and Chopra, Paras},
   year          = {2026},
@@ -859,9 +889,13 @@
   url           = {https://arxiv.org/abs/2605.28317}
 }</code></pre>
         <div class="resource-row">
+          <a class="resource" href="https://openreview.net/forum?id=uWsmvC2jq5" rel="noopener">
+            <span class="resource-label">NeurIPS 2026 paper</span>
+            <span class="resource-meta">OpenReview (camera&ndash;ready)</span>
+          </a>
           <a class="resource" href="https://arxiv.org/abs/2605.28317" rel="noopener">
-            <span class="resource-label">Paper</span>
-            <span class="resource-meta">arXiv:2605.28317</span>
+            <span class="resource-label">Preprint</span>
+            <span class="resource-meta">arXiv:2605.28317 (lossfunk)</span>
           </a>
           <a class="resource" href="https://github.com/Lossfunk/Hybrid-Neural-World-Models" rel="noopener">
             <span class="resource-label">Source code</span>

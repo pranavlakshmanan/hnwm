@@ -146,6 +146,29 @@ button { font: inherit; cursor: pointer; }
   color: var(--ink-mute);
 }
 
+.venue-badge {
+  margin: 0 0 1rem;
+}
+.venue-badge a {
+  display: inline-block;
+  padding: .35rem .8rem;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: var(--fs-kicker);
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--bg-card);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  text-decoration: none;
+}
+.venue-badge a:hover, .venue-badge a:focus-visible {
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+}
+
 .hero-title {
   margin: 0 0 1rem;
   font-family: "Source Serif 4", Georgia, serif;
